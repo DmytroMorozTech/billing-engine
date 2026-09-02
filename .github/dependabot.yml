@@ -1,0 +1,45 @@
+version: 2
+
+updates:
+  # Workflow actions are pinned to commit SHAs, which is the only pin a
+  # compromised tag cannot move. The trade-off is that a pin goes stale
+  # silently, so Dependabot exists to keep it current — a six-month-old SHA
+  # looks worse than an honest tag.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: ci
+
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: chore
+    groups:
+      # One PR per ecosystem rather than a dozen. The frontend toolchain moves
+      # together and is best reviewed together.
+      frontend:
+        patterns:
+          - '@sumup-oss/*'
+          - next
+          - react
+          - react-dom
+          - '@types/react*'
+      backend:
+        patterns:
+          - kysely
+          - pg
+          - '@types/pg'
+          - fastify*
+          - bullmq
+      tooling:
+        patterns:
+          - typescript
+          - typescript-eslint
+          - eslint*
+          - vitest
+          - fast-check
+          - '@types/node'

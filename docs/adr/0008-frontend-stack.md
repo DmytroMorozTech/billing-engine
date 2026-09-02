@@ -103,6 +103,20 @@ cover a hypothetical compromise of an upstream maintainer, and it is a snapshot 
 time. Mitigation: the lockfile is committed, and CI runs `npm ci` plus
 `npm audit signatures` so drift is caught.
 
+The same standard is applied to the pipeline itself, since a workflow is a
+dependency that runs with repository credentials:
+
+- Workflow actions are pinned to **commit SHAs**, not tags. A tag is mutable and
+  its author can repoint it at any time; a SHA cannot be moved. Dependabot keeps
+  the pins current, because a stale pin is worse than an honest tag.
+- The workflow declares `permissions: contents: read`. Without it the jobs
+  inherit the repository default, which is frequently write-capable — a token
+  that can push, handed to a job that only runs a linter.
+- Runners are pinned to `ubuntu-24.04` rather than `ubuntu-latest`. That label
+  currently resolves to the same image, but it moves on GitHub's schedule, and a
+  project whose whole claim is reproducible calculation should not have a CI
+  environment that changes underneath it.
+
 ## Alternatives considered
 
 **Tailwind / shadcn.** Faster to start with for a generic product, but every
