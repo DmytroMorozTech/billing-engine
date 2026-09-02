@@ -1,0 +1,4 @@
+# Build and test output, not source.
+.next/
+__coverage__/
+__reports__/

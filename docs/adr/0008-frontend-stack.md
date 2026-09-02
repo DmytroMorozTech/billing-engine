@@ -58,14 +58,24 @@ Adopting the toolchain wholesale means inheriting its current state:
 
 ### Local fixes to the template
 
-A freshly scaffolded template fails its own lint on Windows. Three fixes are
+A freshly scaffolded template does not survive its own scripts. Five fixes are
 applied in `apps/web` and are **not** upstreamed for now:
 
 | File | Problem | Fix |
 |---|---|---|
 | `package.json` | stylelint pattern wrapped in single quotes — `cmd.exe` does not strip them, stylelint receives a literal pattern, finds no files, exits 1 | wrap the pattern in double quotes |
-| `biome.jsonc` | Biome formats `next-env.d.ts`, a Next.js-generated file marked do-not-edit | add `files.includes` with `!next-env.d.ts` and `!.next/**` — and **no** catch-all entry, since Foundry's shared config already provides one (`lint/suspicious/noBiomeFirstException`) |
+| `package.json` | `test:ci` starts with `mkdir -p __reports__`. `cmd.exe` has no `-p` flag, so it creates a stray directory named `-p` and then fails on the second run because `__reports__` already exists | `node -e "require('node:fs').mkdirSync('__reports__',{recursive:true})"` — cross-platform and adds no dependency |
+| `biome.jsonc` | Biome formats `next-env.d.ts`, a Next.js-generated file marked do-not-edit, and lints the Jest coverage report | add `files.includes` with `!next-env.d.ts`, `!.next/**`, `!__coverage__/**`, `!__reports__/**` — and **no** catch-all entry, since Foundry's shared config already provides one (`lint/suspicious/noBiomeFirstException`) |
+| `.stylelintignore` (new) | stylelint lints `__coverage__/base.css`, part of Istanbul's HTML report, and reports ~500 violations in third-party CSS | ignore `.next/`, `__coverage__/`, `__reports__/` |
 | `components/DocCard/DocCard.tsx` | `target="_blank"` without `rel`, violating Foundry's own `lint/security/noBlankTarget` | add `rel="noopener"` |
+
+The coverage-directory problems share one root cause worth naming: Jest is
+configured to write to `__coverage__`, but the template's `.gitignore` excludes
+`/coverage`. So its own test output is neither ignored by git nor by either
+linter. Running `npm run test:ci` followed by `npm run lint` on an untouched
+scaffold fails — which is the ordering any CI pipeline uses.
+`apps/web/.gitignore` is corrected to match the directories Jest actually
+produces.
 
 ### Supply-chain verification
 

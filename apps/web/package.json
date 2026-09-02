@@ -1,0 +1,50 @@
+{
+  "name": "@billing/web",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev --turbopack",
+    "build": "next build --turbopack",
+    "build:analyze": "ANALYZE=true npm run build",
+    "start": "next start",
+    "lint": "biome check --diagnostic-level=error && eslint . --quiet --concurrency=auto",
+    "lint:fix": "biome check --write --diagnostic-level=error && eslint . --quiet --concurrency=auto --fix",
+    "lint:css": "stylelint \"**/*.css\" --quiet",
+    "test": "jest --watch",
+    "test:ci": "node -e \"require('node:fs').mkdirSync('__reports__',{recursive:true})\" && jest --ci --coverage --runInBand --json --outputFile=__reports__/jest-results.json --reporters default --reporters \"github-actions\""
+  },
+  "dependencies": {
+    "@next/bundle-analyzer": "^16.2.11",
+    "@sumup-oss/circuit-ui": "^11.20.0",
+    "@sumup-oss/design-tokens": "^10.2.0",
+    "@sumup-oss/icons": "^6.17.0",
+    "@sumup-oss/intl": "^3.5.1",
+    "next": "^16.2.11",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6",
+    "temporal-polyfill": "^1.0.4"
+  },
+  "devDependencies": {
+    "@next/eslint-plugin-next": "^16.2.11",
+    "@sumup-oss/eslint-plugin-circuit-ui": "^7.1.0",
+    "@sumup-oss/foundry": "^10.1.0",
+    "@sumup-oss/stylelint-plugin-circuit-ui": "^4.1.0",
+    "@testing-library/jest-dom": "^7.0.0",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/jest": "^30.0.0",
+    "@types/jest-axe": "^3.5.9",
+    "@types/node": "^25.9.1",
+    "@types/react": "^19.2.15",
+    "@types/react-dom": "^19.2.3",
+    "eslint-plugin-jest": "^29.16.0",
+    "eslint-plugin-testing-library": "^7.16.2",
+    "jest": "^30.3.0",
+    "jest-axe": "^10.0.0",
+    "jest-environment-jsdom": "^30.4.1",
+    "typescript": "^6.0.3",
+    "typescript-plugin-css-modules": "^5.2.0"
+  },
+  "description": "Merchant portal and support console"
+}
