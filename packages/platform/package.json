@@ -1,0 +1,23 @@
+{
+  "name": "@billing/platform",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Adapters for the outside world: the system clock and id generation.",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b"
+  },
+  "dependencies": {
+    "@billing/domain": "*",
+    "temporal-polyfill": "^1.0.4",
+    "uuid": "^14.0.2"
+  }
+}

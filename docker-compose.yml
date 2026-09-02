@@ -17,8 +17,13 @@ services:
       # unpleasant bug to track down.
       LANG: C
       POSTGRES_INITDB_ARGS: '--locale=C --encoding=UTF8'
+    # Published on 5433, not 5432. A developer machine very often already runs
+    # a PostgreSQL install on the default port, and on Windows both it and the
+    # Docker proxy will happily bind 5432 at once — connections then land on
+    # whichever won, and the failure looks like a password problem rather than
+    # a port collision. Moving the published port removes the ambiguity.
     ports:
-      - '5432:5432'
+      - '${POSTGRES_PORT:-5433}:5432'
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
@@ -34,7 +39,7 @@ services:
     # source of truth for anything that moves money — see ADR-0004.
     command: ['redis-server', '--appendonly', 'yes']
     ports:
-      - '6379:6379'
+      - '${REDIS_PORT:-6380}:6379'
     volumes:
       - redis-data:/data
     healthcheck:

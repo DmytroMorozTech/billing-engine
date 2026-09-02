@@ -1,0 +1,28 @@
+{
+  "name": "@billing/db",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Schema, migrations and typed database access.",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "migrate": "npm run build && node dist/cli.js up",
+    "migrate:status": "npm run build && node dist/cli.js status"
+  },
+  "dependencies": {
+    "@billing/domain": "*",
+    "kysely": "^0.29.5",
+    "pg": "^8.23.0"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.23.1"
+  }
+}

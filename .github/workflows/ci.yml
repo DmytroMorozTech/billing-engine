@@ -36,6 +36,51 @@ jobs:
       - name: Test
         run: npm run test
 
+  integration:
+    name: Integration
+    runs-on: ubuntu-latest
+
+    # The constraints under test live in the database — an exclusion constraint
+    # on rate intervals, a deferred trigger that refuses an unbalanced ledger
+    # transfer, append-only entries. Asserting them in TypeScript would only
+    # prove the TypeScript is consistent with itself.
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: billing
+          POSTGRES_PASSWORD: billing
+          POSTGRES_DB: billing
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U billing -d billing"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgres://billing:billing@localhost:5432/billing
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Migrate
+        run: node packages/db/dist/cli.js up
+
+      - name: Test
+        run: npm run test
+
   frontend:
     name: Frontend
     runs-on: ubuntu-latest

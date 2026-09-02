@@ -16,3 +16,4 @@ the old one and the old one is marked `Superseded by ADR-XXXX`.
 | [0006](0006-plan-model-and-mid-cycle-rate-change.md) | Plans buy a rate; rate applies by transaction date | Accepted |
 | [0007](0007-repository-structure.md) | npm workspaces monorepo | Accepted |
 | [0008](0008-frontend-stack.md) | Circuit UI as the frontend foundation | Accepted |
+| [0009](0009-database-schema-and-constraints.md) | Invariants belong in the database | Accepted |
