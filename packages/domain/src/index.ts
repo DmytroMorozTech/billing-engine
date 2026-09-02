@@ -50,3 +50,33 @@ export {
   daysBetween,
   contains,
 } from './time/billing-cycle.js';
+
+export {
+  type Derivation,
+  type DerivationNode,
+  computation,
+  event,
+  flatten,
+  rounded,
+  value,
+} from './rating/derivation.js';
+
+export {
+  CHANNELS,
+  type Channel,
+  type RateInterval,
+  type RateSegment,
+  type RateTerms,
+  RateCoverageError,
+  segmentContaining,
+  segmentPeriod,
+} from './rating/rate-interval.js';
+
+export {
+  type BuildInvoiceInput,
+  type InvoiceDraft,
+  type InvoiceLineDraft,
+  type LineKind,
+  type RatedTransaction,
+  buildInvoice,
+} from './rating/invoice-draft.js';
