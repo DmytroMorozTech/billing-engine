@@ -1,0 +1,48 @@
+# Local development infrastructure.
+#
+# Only the backing services live here for now. The api, worker and psp services
+# join this file once those apps exist — a compose file that references missing
+# Dockerfiles is worse than a short one.
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: billing-postgres
+    environment:
+      POSTGRES_USER: billing
+      POSTGRES_PASSWORD: billing
+      POSTGRES_DB: billing
+      # Deterministic collation: sort order affects index behaviour, and a
+      # locale difference between a developer machine and CI is a genuinely
+      # unpleasant bug to track down.
+      LANG: C
+      POSTGRES_INITDB_ARGS: '--locale=C --encoding=UTF8'
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U billing -d billing']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: billing-redis
+    # appendonly keeps queued jobs across a restart. Redis is still not the
+    # source of truth for anything that moves money — see ADR-0004.
+    command: ['redis-server', '--appendonly', 'yes']
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres-data:
+  redis-data:

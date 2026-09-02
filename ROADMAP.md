@@ -16,16 +16,18 @@ Guiding rules for this project:
 
 Small, but everything after it depends on these choices being right.
 
-- [ ] npm workspaces skeleton per [ADR-0007](docs/adr/0007-repository-structure.md)
-- [ ] `docker-compose.yml`: postgres, redis, api, worker, psp
-- [ ] `packages/domain` with `Money` and `Clock`, no I/O
-- [ ] ESLint rules that enforce the invariants rather than merely documenting them:
+- [x] npm workspaces skeleton per [ADR-0007](docs/adr/0007-repository-structure.md)
+- [x] `docker-compose.yml`: postgres and redis
+- [ ] `docker-compose.yml`: api, worker, psp — added with the apps themselves,
+      since a compose file referencing missing Dockerfiles is worse than a short one
+- [x] `packages/domain` with `Money` and `Clock`, no I/O
+- [x] ESLint rules that enforce the invariants rather than merely documenting them:
       no `Date` or `Temporal.Now` inside `packages/domain`; no `pg` / `ioredis` /
-      `fastify` imports there either
-- [ ] Vitest for backend, fast-check wired up
-- [ ] `apps/web` scaffolded from the Circuit UI Next.js template, with the three fixes from
+      `fastify` imports there either. Verified against a probe file, not assumed.
+- [x] Vitest for backend, fast-check wired up
+- [x] `apps/web` scaffolded from the Circuit UI Next.js template, with the fixes from
       [ADR-0008](docs/adr/0008-frontend-stack.md) applied
-- [ ] CI: `npm ci`, lint, typecheck, test, `npm audit signatures`
+- [x] CI: `npm ci`, lint, typecheck, test, `npm audit signatures`
 
 **Done when:** `docker compose up` starts everything and CI is green on an empty
 domain.

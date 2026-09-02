@@ -1,0 +1,90 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NEXT_TELEMETRY_DISABLED: '1'
+
+jobs:
+  backend:
+    name: Backend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm run test
+
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      # apps/web keeps the Circuit UI template's own toolchain, so it is linted
+      # and tested by its own scripts rather than the root ones. See ADR-0007.
+      - name: Lint
+        run: npm run lint --workspace @billing/web
+
+      - name: Lint CSS
+        run: npm run lint:css --workspace @billing/web
+
+      - name: Test
+        run: npm run test:ci --workspace @billing/web
+
+      - name: Build
+        run: npm run build --workspace @billing/web
+
+  supply-chain:
+    name: Supply chain
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      # Every package in the tree must carry a valid npm registry signature.
+      # This is the check that would catch a tampered or unsigned dependency
+      # appearing in the lockfile. See ADR-0008.
+      - name: Verify registry signatures
+        run: npm audit signatures
+
+      # Advisories are reported but do not fail the build: the one known issue
+      # is a stack-exhaustion bug in a dev-only dependency of the frontend
+      # toolchain, which never reaches a production bundle. Revisit if a
+      # runtime dependency is ever affected.
+      - name: Audit
+        run: npm audit --audit-level=high || true
