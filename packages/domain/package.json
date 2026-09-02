@@ -1,0 +1,21 @@
+{
+  "name": "@billing/domain",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Pure billing domain: money, time, rating, proration, ledger. No I/O.",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b"
+  },
+  "dependencies": {
+    "temporal-polyfill": "^1.0.4"
+  }
+}
