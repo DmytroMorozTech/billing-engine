@@ -80,3 +80,12 @@ export {
   type RatedTransaction,
   buildInvoice,
 } from './rating/invoice-draft.js';
+
+export {
+  type CloseInterval,
+  type PlanChangePlan,
+  type PlanChangeRequest,
+  type SupersedeInterval,
+  PlanChangeError,
+  preparePlanChange,
+} from './subscription/plan-change.js';
