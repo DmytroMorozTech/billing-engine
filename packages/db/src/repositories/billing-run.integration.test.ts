@@ -13,7 +13,12 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createDatabase, createPool } from '../connection.js';
 import { migrate, resetSchema } from '../migrate.js';
 import type { Database } from '../schema.js';
-import { invoiceLines, periodAlreadyInvoiced, persistInvoiceDraft } from './invoices.js';
+import {
+  finaliseInvoice,
+  invoiceLines,
+  periodAlreadyInvoiced,
+  persistInvoiceDraft,
+} from './invoices.js';
 import {
   balance,
   ensureMerchantAccounts,
@@ -210,6 +215,31 @@ describeIfDatabase('a billing run end to end', () => {
     expect(commission.formula).toBe('volume × rate');
     expect(commission.rounding?.exact).toBe('6979.70');
     expect(commission.result).toEqual({ amount: 6980, currency: 'EUR' });
+  });
+
+  it('issues the invoice with a number once it leaves draft', async () => {
+    // The run fires when the period closes, so that is the issue date; net 14
+    // is the payment term the dunning schedule will count from.
+    const number = await db
+      .transaction()
+      .execute((tx) =>
+        finaliseInvoice(tx, INVOICE, { issuedOn: date('2026-10-01'), dueOn: date('2026-10-15') }),
+      );
+
+    expect(number).toBe('DE-2026-000001');
+
+    const invoice = await db
+      .selectFrom('invoices')
+      .select(['number', 'status', 'issued_on', 'due_on'])
+      .where('id', '=', INVOICE)
+      .executeTakeFirstOrThrow();
+
+    expect(invoice).toEqual({
+      number: 'DE-2026-000001',
+      status: 'open',
+      issued_on: '2026-10-01',
+      due_on: '2026-10-15',
+    });
   });
 
   it('will not bill the same period twice', async () => {

@@ -94,8 +94,10 @@ balances.
       ([ADR-0005](docs/adr/0005-outbox-with-pluggable-publisher.md))
 - [ ] VAT by market: DE 19%, UK 20%, IT 22%; reverse charge for B2B with a valid
       VAT ID
-- [ ] **Gapless invoice numbering** per legal entity, holding under concurrent
-      writes and transaction rollbacks — a legal requirement in DE and IT
+- [x] **Gapless invoice numbering** per legal entity, holding under concurrent
+      writes and transaction rollbacks — a legal requirement in DE and IT.
+      `finaliseInvoice` takes a `Transaction`, so a number cannot be issued
+      outside the transaction that keeps it.
 - [ ] **Credit notes for backdated changes.** Moved here from Stage 1. The
       timeline rewrite already works and is tested: moving an upgrade from
       15 September back to the 5th changes the same invoice from 14071 to 11385.
@@ -108,8 +110,9 @@ balances.
 - [x] Errors as RFC 9457 Problem Details, including the failures Fastify raises
       itself — a client never has to tell our error shape from the framework's
 
-**Property test:** invoice numbers are sequential per legal entity with no gaps,
-under randomised concurrency and rollbacks.
+**Property test:** [x] invoice numbers are sequential per legal entity with no
+gaps, under randomised concurrency and rollbacks. Mutation-checked: removing the
+row lock makes it fail, so it is testing the lock rather than the happy path.
 
 **Done when:** the system is deployed live with seeded demo data and the full
 dunning sequence can be watched end to end.

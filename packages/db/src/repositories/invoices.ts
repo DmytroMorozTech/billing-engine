@@ -1,5 +1,6 @@
 import type { Derivation, InvoiceDraft } from '@billing/domain';
 import type { Transaction } from 'kysely';
+import type { Temporal } from 'temporal-polyfill';
 
 import { fromPlainDate } from '../mappers.js';
 import type { Database } from '../schema.js';
@@ -87,6 +88,120 @@ export async function persistInvoiceDraft(
       })),
     )
     .execute();
+}
+
+export interface FinaliseInvoiceInput {
+  /** The issue date, in the legal entity's own calendar. Decides the year. */
+  issuedOn: Temporal.PlainDate;
+  dueOn: Temporal.PlainDate;
+}
+
+export class NoSuchInvoiceError extends Error {
+  constructor(invoiceId: string) {
+    super(`No invoice with id ${invoiceId}`);
+    this.name = 'NoSuchInvoiceError';
+  }
+}
+
+/**
+ * Turns a draft into an issued invoice with a number.
+ *
+ * Takes a `Transaction`, not a `Kysely`, and not by accident: a number handed
+ * out by a transaction that later rolls back is precisely the gap the law
+ * forbids. The counter row is locked with `SELECT ... FOR UPDATE`, so
+ * concurrent finalisations queue rather than collide, and the increment lives
+ * or dies with the invoice it numbered. See ADR-0009.
+ *
+ * The year comes from `issuedOn` rather than from the clock. "Today" for a
+ * German entity is a question about Europe/Berlin, and that belongs to the
+ * caller who knows which entity is issuing.
+ *
+ * Finalising an invoice that is already issued returns the number it already
+ * has. A retried billing run must not consume a second one.
+ */
+export async function finaliseInvoice(
+  tx: Transaction<Database>,
+  invoiceId: string,
+  input: FinaliseInvoiceInput,
+): Promise<string> {
+  const invoice = await tx
+    .selectFrom('invoices')
+    .select(['legal_entity_id', 'status', 'number'])
+    .where('id', '=', invoiceId)
+    .executeTakeFirst();
+
+  if (invoice === undefined) {
+    throw new NoSuchInvoiceError(invoiceId);
+  }
+  if (invoice.status !== 'draft' && invoice.number !== null) {
+    return invoice.number;
+  }
+
+  const number = await claimNextNumber(tx, invoice.legal_entity_id, input.issuedOn.year);
+
+  await tx
+    .updateTable('invoices')
+    .set({
+      number,
+      status: 'open',
+      issued_on: fromPlainDate(input.issuedOn),
+      due_on: fromPlainDate(input.dueOn),
+    })
+    .where('id', '=', invoiceId)
+    .where('status', '=', 'draft')
+    .execute();
+
+  return number;
+}
+
+/**
+ * Takes the next number for a legal entity and year, and advances the counter.
+ *
+ * The row is created on first use and then locked. `ON CONFLICT DO NOTHING`
+ * rather than an upsert with a value: two transactions arriving together must
+ * not have one of them silently reset the counter.
+ */
+async function claimNextNumber(
+  tx: Transaction<Database>,
+  legalEntityId: string,
+  year: number,
+): Promise<string> {
+  await tx
+    .insertInto('invoice_sequences')
+    .values({ legal_entity_id: legalEntityId, year, next_value: 1 })
+    .onConflict((oc) => oc.columns(['legal_entity_id', 'year']).doNothing())
+    .execute();
+
+  const sequence = await tx
+    .selectFrom('invoice_sequences')
+    .select('next_value')
+    .where('legal_entity_id', '=', legalEntityId)
+    .where('year', '=', year)
+    // Everything after this point is serialised against other finalisations
+    // for the same entity and year. That is the cost of gaplessness, and it is
+    // paid here rather than by a support engineer explaining a missing number.
+    .forUpdate()
+    .executeTakeFirstOrThrow();
+
+  await tx
+    .updateTable('invoice_sequences')
+    .set({ next_value: sequence.next_value + 1 })
+    .where('legal_entity_id', '=', legalEntityId)
+    .where('year', '=', year)
+    .execute();
+
+  const entity = await tx
+    .selectFrom('legal_entities')
+    .select('number_prefix')
+    .where('id', '=', legalEntityId)
+    .executeTakeFirstOrThrow();
+
+  return format(entity.number_prefix, year, sequence.next_value);
+}
+
+/** `DE-2026-000001`. Padded so numbers sort lexicographically within a year. */
+function format(prefix: string, year: number, value: number): string {
+  return `${prefix}-${year}-${value.toString().padStart(6, '0')}`;
 }
 
 export async function invoiceLines(db: Db, invoiceId: string): Promise<StoredInvoiceLine[]> {

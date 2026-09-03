@@ -39,8 +39,11 @@ export {
 } from './idempotency.js';
 
 export {
+  type FinaliseInvoiceInput,
   type PersistInvoiceInput,
   type StoredInvoiceLine,
+  NoSuchInvoiceError,
+  finaliseInvoice,
   invoiceLines,
   periodAlreadyInvoiced,
   persistInvoiceDraft,
