@@ -60,6 +60,7 @@ describeIfDatabase('invoice numbering', () => {
       subtotal: eur(1900),
       vat: eur(361),
       total: eur(2261),
+      vatTreatment: 'standard',
     };
   }
 

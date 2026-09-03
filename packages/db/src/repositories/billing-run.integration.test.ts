@@ -183,7 +183,7 @@ describeIfDatabase('a billing run end to end', () => {
       currency: 'EUR',
       intervals,
       transactions,
-      vatRateBps: 1900,
+      vat: { kind: 'standard', rateBps: 1900 },
     });
 
     // The worked example from ADR-0006, reached entirely through the database.

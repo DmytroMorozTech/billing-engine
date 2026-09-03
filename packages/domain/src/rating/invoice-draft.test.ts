@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 import { applyRate, money, subtract, toDecimalString } from '../money/money.js';
 import { flatten } from './derivation.js';
+import type { VatTreatment } from '../tax/vat.js';
 import { buildInvoice, type RatedTransaction } from './invoice-draft.js';
 import { RateCoverageError, type RateInterval, segmentPeriod } from './rate-interval.js';
 
@@ -93,7 +94,7 @@ describe('ADR-0006 worked example', () => {
     currency: 'EUR',
     intervals: [standard, plus],
     transactions,
-    vatRateBps: 1900,
+    vat: { kind: 'standard', rateBps: 1900 },
   });
 
   it('produces the documented lines, in order', () => {
@@ -160,7 +161,7 @@ describe('channels', () => {
         transaction('t1', 100_000, '2026-09-05', 'in_person'),
         transaction('t2', 100_000, '2026-09-06', 'online'),
       ],
-      vatRateBps: 1900,
+      vat: { kind: 'standard', rateBps: 1900 },
     });
 
     expect(invoice.lines.map((line) => line.amount.amount)).toEqual([
@@ -179,7 +180,7 @@ describe('channels', () => {
         transaction('t2', 10_000, '2026-09-06', 'moto'),
         transaction('t3', 10_000, '2026-09-07', 'moto'),
       ],
-      vatRateBps: 1900,
+      vat: { kind: 'standard', rateBps: 1900 },
     });
 
     // 30000 × 295 ÷ 10000 = 885, plus 3 × 25 = 75.
@@ -199,7 +200,7 @@ describe('boundaries', () => {
       currency: 'EUR',
       intervals: [standard, plus],
       transactions: [transaction('t1', 100_000, '2026-09-15')],
-      vatRateBps: 1900,
+      vat: { kind: 'standard', rateBps: 1900 },
     });
 
     const commission = invoice.lines.filter((line) => line.kind === 'commission');
@@ -213,7 +214,7 @@ describe('boundaries', () => {
       currency: 'EUR',
       intervals: [standard, plus],
       transactions: [transaction('t1', 100_000, '2026-09-14')],
-      vatRateBps: 1900,
+      vat: { kind: 'standard', rateBps: 1900 },
     });
 
     const commission = invoice.lines.filter((line) => line.kind === 'commission');
@@ -226,7 +227,7 @@ describe('boundaries', () => {
       currency: 'EUR',
       intervals: [{ ...standard, effectiveTo: null }],
       transactions: [],
-      vatRateBps: 1900,
+      vat: { kind: 'standard', rateBps: 1900 },
     });
 
     expect(invoice.lines).toHaveLength(0);
@@ -241,9 +242,54 @@ describe('reproducibility', () => {
       currency: 'EUR' as const,
       intervals: [standard, plus],
       transactions: [transaction('t1', 413_000, '2026-09-10'), transaction('t2', 387_000, '2026-09-20')],
-      vatRateBps: 1900,
+      vat: { kind: 'standard' as const, rateBps: 1900 },
     };
 
     expect(JSON.stringify(buildInvoice(input))).toBe(JSON.stringify(buildInvoice(input)));
+  });
+});
+
+describe('VAT treatment', () => {
+  const transactions: RatedTransaction[] = [
+    transaction('t1', 413_000, '2026-09-10'),
+    transaction('t2', 387_000, '2026-09-20'),
+  ];
+
+  const build = (vat: VatTreatment) =>
+    buildInvoice({
+      period: SEPTEMBER,
+      currency: 'EUR',
+      intervals: [standard, plus],
+      transactions,
+      vat,
+    });
+
+  it('adds VAT to the subtotal on a domestic invoice', () => {
+    const invoice = build({ kind: 'standard', rateBps: 1900 });
+
+    expect(invoice.subtotal.amount).toBe(11_824);
+    expect(invoice.vat.amount).toBe(2247);
+    expect(invoice.total.amount).toBe(14_071);
+    expect(invoice.vatTreatment).toBe('standard');
+  });
+
+  it('charges no VAT under reverse charge, and says so on every line', () => {
+    // The liability is the customer's. A line still carrying 19% would be a
+    // rate we are not entitled to charge, sitting in the data as if we were.
+    const invoice = build({ kind: 'reverse_charge', rateBps: 0 });
+
+    expect(invoice.subtotal.amount).toBe(11_824);
+    expect(invoice.vat.amount).toBe(0);
+    expect(invoice.total).toEqual(invoice.subtotal);
+    expect(invoice.vatTreatment).toBe('reverse_charge');
+    expect(invoice.lines.map((line) => line.vatRateBps)).toEqual([0, 0, 0]);
+  });
+
+  it('keeps an out-of-scope supply distinct from a reverse charge', () => {
+    // Both come to zero. Only one of them cites an EU directive.
+    const invoice = build({ kind: 'outside_scope', rateBps: 0 });
+
+    expect(invoice.vat.amount).toBe(0);
+    expect(invoice.vatTreatment).toBe('outside_scope');
   });
 });

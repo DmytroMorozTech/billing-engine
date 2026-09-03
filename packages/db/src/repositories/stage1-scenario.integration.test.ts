@@ -81,7 +81,7 @@ describeIfDatabase('Stage 1 acceptance scenario', () => {
       currency: merchant.currency,
       intervals,
       transactions,
-      vatRateBps: merchant.vatRateBps,
+      vat: { kind: 'standard', rateBps: merchant.vatRateBps },
     });
 
     const invoiceId = nextId();

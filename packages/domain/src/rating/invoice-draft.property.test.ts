@@ -90,7 +90,7 @@ describe('every transaction is priced exactly once', () => {
           currency: 'EUR',
           intervals,
           transactions,
-          vatRateBps: 1900,
+          vat: { kind: 'standard', rateBps: 1900 },
         });
 
         const charged = invoice.lines
@@ -137,7 +137,7 @@ describe('invoice totals are internally consistent', () => {
           currency: 'EUR',
           intervals: intervalsFor(day),
           transactions: toTransactions(raw),
-          vatRateBps: 1900,
+          vat: { kind: 'standard', rateBps: 1900 },
         });
 
         const lineSum = invoice.lines.reduce(
@@ -162,7 +162,7 @@ describe('the prorated subscription fee never exceeds the full fee', () => {
           currency: 'EUR',
           intervals: intervalsFor(day),
           transactions: [],
-          vatRateBps: 1900,
+          vat: { kind: 'standard', rateBps: 1900 },
         });
 
         const subscription = invoice.lines
@@ -187,7 +187,7 @@ describe('every line carries an explanation', () => {
           currency: 'EUR',
           intervals: intervalsFor(day),
           transactions: toTransactions(raw),
-          vatRateBps: 1900,
+          vat: { kind: 'standard', rateBps: 1900 },
         });
 
         for (const line of invoice.lines) {

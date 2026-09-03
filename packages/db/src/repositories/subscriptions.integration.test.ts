@@ -178,7 +178,7 @@ describeIfDatabase('applying a plan change', () => {
       currency: 'EUR',
       intervals,
       transactions,
-      vatRateBps: 1900,
+      vat: { kind: 'standard' as const, rateBps: 1900 },
     });
 
     // Matches the unit test that used hand-built intervals — the round trip

@@ -14,6 +14,7 @@ import {
   toDecimalString,
   zero,
 } from '../money/money.js';
+import type { VatTreatment } from '../tax/vat.js';
 import { type BillingPeriod, daysInPeriod } from '../time/billing-cycle.js';
 import { type Derivation, computation, rounded, value } from './derivation.js';
 import {
@@ -49,6 +50,11 @@ export interface InvoiceDraft {
   subtotal: Money;
   vat: Money;
   total: Money;
+  /**
+   * Why the VAT is what it is. Two treatments come to zero for different
+   * reasons, and an invoice showing no VAT has to say which one applied.
+   */
+  vatTreatment: VatTreatment['kind'];
 }
 
 export interface BuildInvoiceInput {
@@ -56,7 +62,8 @@ export interface BuildInvoiceInput {
   currency: CurrencyCode;
   intervals: readonly RateInterval[];
   transactions: readonly RatedTransaction[];
-  vatRateBps: BasisPoints;
+  /** The treatment carries its own rate, so the two cannot disagree. */
+  vat: VatTreatment;
 }
 
 /**
@@ -72,7 +79,12 @@ export interface BuildInvoiceInput {
  * shows and what the tax authority expects to be able to check.
  */
 export function buildInvoice(input: BuildInvoiceInput): InvoiceDraft {
-  const { period, currency, intervals, transactions, vatRateBps } = input;
+  const { period, currency, intervals, transactions, vat: treatment } = input;
+
+  // One rate, taken from the treatment rather than passed beside it: an
+  // invoice that says "reverse charge" and carries 19% on its lines is a state
+  // worth making unrepresentable.
+  const vatRateBps = treatment.rateBps;
 
   const segments = segmentPeriod(period, intervals);
   const periodDays = daysInPeriod(period);
@@ -88,7 +100,15 @@ export function buildInvoice(input: BuildInvoiceInput): InvoiceDraft {
   );
   const vat = applyRate(subtotal, vatRateBps);
 
-  return { period, currency, lines, subtotal, vat, total: add(subtotal, vat) };
+  return {
+    period,
+    currency,
+    lines,
+    subtotal,
+    vat,
+    total: add(subtotal, vat),
+    vatTreatment: treatment.kind,
+  };
 }
 
 /**

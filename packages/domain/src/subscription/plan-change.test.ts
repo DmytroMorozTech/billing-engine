@@ -173,7 +173,7 @@ describe('backdated change', () => {
         { ...PLUS, id: 'ri_2', effectiveFrom: date('2026-09-15'), effectiveTo: null },
       ],
       transactions,
-      vatRateBps: 1900,
+      vat: { kind: 'standard' as const, rateBps: 1900 },
     });
 
     const after = buildInvoice({
@@ -181,7 +181,7 @@ describe('backdated change', () => {
       currency: 'EUR',
       intervals: plan.resulting,
       transactions,
-      vatRateBps: 1900,
+      vat: { kind: 'standard' as const, rateBps: 1900 },
     });
 
     // Before: the upgrade lands on the 15th, so the 10 September volume is

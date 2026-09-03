@@ -63,6 +63,7 @@ export async function persistInvoiceDraft(
       subtotal_minor: draft.subtotal.amount,
       vat_minor: draft.vat.amount,
       total_minor: draft.total.amount,
+      vat_treatment: draft.vatTreatment,
       issued_on: null,
       due_on: null,
     })

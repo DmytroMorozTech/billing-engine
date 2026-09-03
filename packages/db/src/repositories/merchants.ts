@@ -1,4 +1,5 @@
-import type { CurrencyCode } from '@billing/domain';
+import type { CurrencyCode, VatTreatment } from '@billing/domain';
+import { vatTreatment } from '@billing/domain';
 import type { Temporal } from 'temporal-polyfill';
 
 import { fromPlainDate, toPlainDate } from '../mappers.js';
@@ -19,12 +20,36 @@ export interface NewMerchantInput {
 export interface MerchantContext {
   id: string;
   legalEntityId: string;
+  /** The market of the entity issuing the invoice, not of the merchant. */
+  legalEntityMarketId: string;
   marketId: string;
   currency: CurrencyCode;
   billingTimeZone: string;
   vatId: string | null;
   /** The VAT rate of the merchant's market, in basis points. */
   vatRateBps: number;
+  /** False outside the EU, where the reverse-charge mechanism does not reach. */
+  reverseChargeAvailable: boolean;
+}
+
+/**
+ * The VAT treatment of an invoice to this merchant.
+ *
+ * A thin adapter, on purpose: the rule itself is pure and lives in the domain,
+ * where it is tested without a database. This is the one place that knows which
+ * database column feeds which part of it, so a caller cannot pair the merchant's
+ * market with the supplier's rate by accident.
+ */
+export function vatTreatmentFor(merchant: MerchantContext): VatTreatment {
+  return vatTreatment({
+    supplierMarketId: merchant.legalEntityMarketId,
+    customer: {
+      marketId: merchant.marketId,
+      rateBps: merchant.vatRateBps,
+      reverseChargeAvailable: merchant.reverseChargeAvailable,
+    },
+    customerVatId: merchant.vatId,
+  });
 }
 
 export interface NewSubscriptionInput {
@@ -86,6 +111,7 @@ export async function merchantContext(db: Db, merchantId: string): Promise<Merch
   const row = await db
     .selectFrom('merchants')
     .innerJoin('markets', 'markets.id', 'merchants.market_id')
+    .innerJoin('legal_entities', 'legal_entities.id', 'merchants.legal_entity_id')
     .select([
       'merchants.id as id',
       'merchants.legal_entity_id as legal_entity_id',
@@ -94,6 +120,8 @@ export async function merchantContext(db: Db, merchantId: string): Promise<Merch
       'merchants.billing_time_zone as billing_time_zone',
       'merchants.vat_id as vat_id',
       'markets.vat_rate_bps as vat_rate_bps',
+      'markets.reverse_charge_available as reverse_charge_available',
+      'legal_entities.market_id as legal_entity_market_id',
     ])
     .where('merchants.id', '=', merchantId)
     .executeTakeFirstOrThrow();
@@ -101,11 +129,13 @@ export async function merchantContext(db: Db, merchantId: string): Promise<Merch
   return {
     id: row.id,
     legalEntityId: row.legal_entity_id,
+    legalEntityMarketId: row.legal_entity_market_id,
     marketId: row.market_id,
     currency: row.currency as CurrencyCode,
     billingTimeZone: row.billing_time_zone,
     vatId: row.vat_id,
     vatRateBps: row.vat_rate_bps,
+    reverseChargeAvailable: row.reverse_charge_available,
   };
 }
 

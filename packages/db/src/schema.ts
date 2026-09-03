@@ -142,6 +142,8 @@ export interface InvoicesTable {
   subtotal_minor: MinorUnits;
   vat_minor: MinorUnits;
   total_minor: MinorUnits;
+  /** Why the VAT is what it is. Zero arrives for two different reasons. */
+  vat_treatment: Generated<'standard' | 'reverse_charge' | 'outside_scope'>;
   issued_on: IsoDate | null;
   due_on: IsoDate | null;
   created_at: DefaultedTimestamp;

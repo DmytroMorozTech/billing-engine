@@ -84,6 +84,14 @@ export {
 } from './rating/invoice-draft.js';
 
 export {
+  type VatMarket,
+  type VatTreatment,
+  type VatTreatmentInput,
+  isVatIdFormatValid,
+  vatTreatment,
+} from './tax/vat.js';
+
+export {
   type CloseInterval,
   type PlanChangePlan,
   type PlanChangeRequest,

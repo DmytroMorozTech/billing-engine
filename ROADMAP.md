@@ -92,8 +92,12 @@ balances.
       the merchant id — two merchants can legitimately send an identical payload.
 - [ ] Transactional outbox with a pluggable publisher
       ([ADR-0005](docs/adr/0005-outbox-with-pluggable-publisher.md))
-- [ ] VAT by market: DE 19%, UK 20%, IT 22%; reverse charge for B2B with a valid
-      VAT ID
+- [x] VAT by market: DE 19%, UK 20%, IT 22%; reverse charge for B2B with a valid
+      VAT ID. Three treatments rather than two: the UK is outside the EU, so a
+      British business is an out-of-scope supply, not a reverse charge — both
+      come to zero and they cite different law. The treatment is stored on the
+      invoice, because "why is there no VAT here" is a question with two
+      possible answers.
 - [x] **Gapless invoice numbering** per legal entity, holding under concurrent
       writes and transaction rollbacks — a legal requirement in DE and IT.
       `finaliseInvoice` takes a `Transaction`, so a number cannot be issued
