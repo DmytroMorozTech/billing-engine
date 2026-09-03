@@ -59,6 +59,41 @@ The related engine mismatch is fixed at the same time: `.nvmrc` said `22` while
 which is Node 24 — the root file simply contradicted it. It now says `24`, and
 `engines.node` matches.
 
+## Update, 2026-09-03: repairing a lockfile that is already pruned
+
+The rule above prevents the damage. It does not undo it, and the damage
+recurred: the lockfile was regenerated with plain `npm install` on Windows while
+Fastify was being added, and arrived on `main` with zero of the twelve
+`@parcel/watcher` binaries. Docker found it before CI did, because `npm ci`
+inside a Linux image fails on exactly the same error as the one quoted above.
+
+Three things were measured while repairing it:
+
+1. **`npm run lockfile` cannot repair a pruned lockfile.** With a lockfile
+   present it builds the ideal tree from that lockfile and keeps its omissions —
+   before and after were identical, 1169 entries and no platform binaries.
+2. **Deleting the lockfile and regenerating on Windows crashes npm.**
+   `Cannot read properties of null (reading 'edgesOut')`, thrown from
+   arborist's `#loadPeerSet` while resolving `vitest`'s peers, on npm 11.5.2.
+   With `node_modules` present instead, npm resolves from the installed tree and
+   writes a lockfile with six `resolved` fields out of 1079 — worse than the one
+   it replaced.
+3. **Generating in a Linux container keeps every platform.** From manifests
+   alone, no lockfile and no `node_modules`, `npm install --package-lock-only`
+   on npm 11.19.0 produced 1219 entries with all twelve binaries — and 18 win32
+   entries, 18 darwin, 64 linux.
+
+Point 3 corrects the alternative rejected below. `--package-lock-only` resolves
+the dependency graph without installing, so no platform filtering happens
+whichever kernel it runs on; the objection applies to running a real
+`npm install` in a container, not to this command. Verified after the fact by
+`npm ci` on both sides: the Docker build and the Windows working copy.
+
+So the repair path, when a pruned lockfile has already been committed, is to
+regenerate it from the manifests in a container. Day-to-day dependency changes
+still go through `npm run lockfile`, which is enough as long as the lockfile it
+starts from is intact.
+
 ## Consequences
 
 - Adding or upgrading a dependency is two steps rather than one: edit the
@@ -75,10 +110,12 @@ which is Node 24 — the root file simply contradicted it. It now says `24`, and
 
 ## Alternatives considered
 
-**Generate the lockfile inside a Linux container.** Correct and portable, but it
-makes every dependency change depend on Docker running, and it would produce a
-lockfile that strips *Windows* optional dependencies instead — the same problem
-pointed the other way.
+**Generate the lockfile inside a Linux container.** Rejected here on the grounds
+that it makes every dependency change depend on Docker running, and that it
+would strip *Windows* optional dependencies instead — the same problem pointed
+the other way. The second half of that is wrong for `--package-lock-only`, and
+the update above records the measurement. It remains the repair path rather than
+the routine one, because of the first half.
 
 **Commit no lockfile.** Removes the failure and removes reproducibility with it.
 Not a real option for a project whose central claim is that results reproduce.
