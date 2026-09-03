@@ -83,8 +83,13 @@ balances.
 
 ## Stage 2 — What sets it apart
 
-- [ ] **Dunning:** payment fails → retries on a schedule → grace period →
+- [x] **Dunning:** payment fails → retries on a schedule → grace period →
       suspension. Driven by the PSP simulator's deterministic rejection rules.
+      Four attempts on days 0, 1, 3 and 7 from issue. A merchant who pays on the
+      third is active again; one who never pays is suspended and the invoice
+      becomes uncollectible — not forgiven, so the debt stays on the ledger.
+      The schedule is a pure function, so the sequence runs in a test in
+      milliseconds rather than a week.
 - [x] PSP simulator in Go (`apps/psp`), ~250 lines. Stateless: the charge id is
       derived from the idempotency key and the outcome from the amount and the
       attempt number, so a restarted container answers a demo identically. `…01`
