@@ -42,7 +42,9 @@ export {
   type NewPaymentAttempt,
   type PaymentAttempt,
   attemptsFor,
+  markUncollectible,
   recordAttempt,
+  setSubscriptionStatus,
   settleInvoice,
 } from './payments.js';
 

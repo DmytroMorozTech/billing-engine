@@ -1,23 +1,57 @@
 /**
  * The worker: the composition root of the outbox relay.
  *
- * It publishes and nothing else, for now. Consumers arrive with dunning, which
- * is what will actually read these jobs; a worker running an empty handler
- * registry today would be code with nothing to do and tests that prove nothing.
+ * Two jobs in one process: it relays the outbox into the queue, and it consumes
+ * that queue to collect invoices. They are separated by an interface rather
+ * than by a container, because nothing yet needs them to scale apart.
  *
  * Migrations do not run here either — same reason as the API. The schema is one
  * deliberate step, not a side effect of a process starting.
  */
 import { createDatabase, createPool, unpublishedCount } from '@billing/db';
-import { BullMqPublisher } from '@billing/platform';
+import {
+  BullMqPublisher,
+  BullMqRetryScheduler,
+  HttpPspClient,
+  Uuid7Generator,
+} from '@billing/platform';
+import { Worker } from 'bullmq';
 
 import { loadConfig } from './config.js';
+import { processDunning } from './dunning.js';
+import { handleJob } from './handle-job.js';
 import { relayOnce } from './relay.js';
 
 const config = loadConfig(process.env);
 const pool = createPool({ connectionString: config.databaseUrl });
 const db = createDatabase(pool);
 const publisher = new BullMqPublisher({ connectionUrl: config.redisUrl });
+const scheduler = new BullMqRetryScheduler({ connectionUrl: config.redisUrl });
+const psp = new HttpPspClient({ baseUrl: config.pspUrl });
+const ids = new Uuid7Generator();
+
+/**
+ * Consumes what the relay publishes.
+ *
+ * A job that throws is retried by BullMQ and, after its attempts, lands in the
+ * failed set rather than disappearing — which is what the support console's
+ * stuck-jobs screen is for. That is deliberately not the same thing as a
+ * payment attempt: a job retry is about our own failures.
+ */
+const consumer = new Worker(
+  'outbox',
+  async (job) => {
+    await handleJob(
+      { runDunning: (input) => processDunning({ db, psp, ids }, input), scheduler },
+      { name: job.name, data: job.data },
+    );
+  },
+  { connection: { url: config.redisUrl }, concurrency: 4 },
+);
+
+consumer.on('failed', (job, error) => {
+  log({ job: job?.name, id: job?.id, err: String(error), msg: 'job failed' });
+});
 
 let running = true;
 let draining: Promise<number> = Promise.resolve(0);
@@ -96,7 +130,12 @@ for (const signal of ['SIGTERM', 'SIGINT'] as const) {
   });
 }
 
-log({ batchSize: config.batchSize, pollIntervalMs: config.pollIntervalMs, msg: 'relay started' });
+log({
+  batchSize: config.batchSize,
+  pollIntervalMs: config.pollIntervalMs,
+  psp: config.pspUrl,
+  msg: 'relay and consumer started',
+});
 log({ pending: await unpublishedCount(db), msg: 'outbox backlog at startup' });
 
 await loop();

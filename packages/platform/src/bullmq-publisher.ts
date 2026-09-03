@@ -51,3 +51,47 @@ export class BullMqPublisher implements OutboxPublisher {
     await this.#queue.close();
   }
 }
+
+/**
+ * Schedules the next collection attempt.
+ *
+ * Separate from the publisher because it is a different act: the publisher
+ * forwards something that already happened, while this asks for something to
+ * happen later. They share a queue and nothing else.
+ */
+export interface RetryScheduler {
+  scheduleRetry(input: { invoiceId: string; attempt: number; delayMs: number }): Promise<void>;
+  close(): Promise<void>;
+}
+
+export class BullMqRetryScheduler implements RetryScheduler {
+  readonly #queue: Queue;
+
+  constructor(options: BullMqPublisherOptions) {
+    this.#queue = new Queue(options.queueName ?? 'outbox', {
+      connection: { url: options.connectionUrl },
+    });
+  }
+
+  async scheduleRetry(input: {
+    invoiceId: string;
+    attempt: number;
+    delayMs: number;
+  }): Promise<void> {
+    await this.#queue.add(
+      'payment.retry',
+      { invoiceId: input.invoiceId, attempt: input.attempt },
+      {
+        delay: input.delayMs,
+        // Derived from what the retry is for, so a handler that runs twice
+        // cannot queue the same attempt twice. Hyphens because BullMQ reserves
+        // the colon for its own keys.
+        jobId: `retry-${input.invoiceId}-${input.attempt}`,
+      },
+    );
+  }
+
+  async close(): Promise<void> {
+    await this.#queue.close();
+  }
+}

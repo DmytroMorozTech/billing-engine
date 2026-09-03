@@ -65,12 +65,15 @@ services:
     environment:
       DATABASE_URL: postgres://billing:billing@postgres:5432/billing
       REDIS_URL: redis://redis:6379
+      PSP_URL: http://psp:8082
       OUTBOX_POLL_INTERVAL_MS: 1000
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+      psp:
+        condition: service_started
       migrate:
         condition: service_completed_successfully
     restart: unless-stopped

@@ -92,6 +92,13 @@ export {
 } from './tax/vat.js';
 
 export {
+  type AfterFailure,
+  ATTEMPTS_ALLOWED,
+  RETRY_SCHEDULE_DAYS,
+  afterFailedAttempt,
+} from './subscription/dunning.js';
+
+export {
   type CloseInterval,
   type PlanChangePlan,
   type PlanChangeRequest,

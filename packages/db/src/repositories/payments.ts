@@ -89,3 +89,44 @@ export async function settleInvoice(
     .where('status', '=', 'open')
     .execute();
 }
+
+/**
+ * Gives up on collecting an invoice.
+ *
+ * Uncollectible, not forgiven: the merchant still owes it and the ledger still
+ * says so. Writing a debt off is a separate decision with its own accounting,
+ * and it is not one a declined card should be able to make.
+ */
+export async function markUncollectible(
+  tx: Transaction<Database>,
+  invoiceId: string,
+): Promise<void> {
+  await tx
+    .updateTable('invoices')
+    .set({ status: 'uncollectible' })
+    .where('id', '=', invoiceId)
+    .where('status', '=', 'open')
+    .execute();
+}
+
+/**
+ * Moves a subscription along the dunning path.
+ *
+ * The guard is the interesting part. `past_due` is only reachable from
+ * `active`, so a redelivered failure cannot pull a suspended merchant back to
+ * merely late; and `active` is only reachable from `past_due`, so a late
+ * payment cannot quietly revive a cancelled subscription.
+ */
+export async function setSubscriptionStatus(
+  tx: Transaction<Database>,
+  subscriptionId: string,
+  to: 'active' | 'past_due' | 'suspended',
+  from: readonly ('active' | 'past_due' | 'suspended')[],
+): Promise<void> {
+  await tx
+    .updateTable('subscriptions')
+    .set({ status: to })
+    .where('id', '=', subscriptionId)
+    .where('status', 'in', [...from])
+    .execute();
+}

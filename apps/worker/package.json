@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Publishes the outbox, and later runs the jobs it schedules",
+  "description": "Relays the outbox and collects invoices",
   "main": "./dist/main.js",
   "scripts": {
     "build": "tsc -b",
@@ -13,6 +13,7 @@
     "@billing/db": "*",
     "@billing/domain": "*",
     "@billing/platform": "*",
-    "kysely": "^0.29.5"
+    "kysely": "^0.29.5",
+    "bullmq": "^5.66.1"
   }
 }

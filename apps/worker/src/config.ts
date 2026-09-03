@@ -8,6 +8,8 @@
 export interface WorkerConfig {
   databaseUrl: string;
   redisUrl: string;
+  /** The payment provider. Required: a consumer with nowhere to charge is idle. */
+  pspUrl: string;
   /** Events taken per pass. Bounds the transaction held across a publish. */
   batchSize: number;
   pollIntervalMs: number;
@@ -27,6 +29,7 @@ export function loadConfig(env: NodeJS.ProcessEnv): WorkerConfig {
   return {
     databaseUrl: required(env.DATABASE_URL, 'DATABASE_URL', 'the outbox lives in PostgreSQL'),
     redisUrl: required(env.REDIS_URL, 'REDIS_URL', 'there is nowhere to publish without it'),
+    pspUrl: required(env.PSP_URL, 'PSP_URL', 'invoices cannot be collected without a provider'),
     batchSize: positive(env.OUTBOX_BATCH_SIZE, 'OUTBOX_BATCH_SIZE', DEFAULT_BATCH_SIZE),
     pollIntervalMs: positive(
       env.OUTBOX_POLL_INTERVAL_MS,
