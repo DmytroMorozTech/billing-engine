@@ -90,8 +90,12 @@ balances.
       ([ADR-0004](docs/adr/0004-idempotency-in-postgres.md)). The key row commits
       in the same transaction as the effect it protects, and the scope includes
       the merchant id — two merchants can legitimately send an identical payload.
-- [ ] Transactional outbox with a pluggable publisher
-      ([ADR-0005](docs/adr/0005-outbox-with-pluggable-publisher.md))
+- [x] Transactional outbox with a pluggable publisher
+      ([ADR-0005](docs/adr/0005-outbox-with-pluggable-publisher.md)).
+      `finaliseInvoice` announces the invoice in the transaction that issued it;
+      `apps/worker` relays with `FOR UPDATE SKIP LOCKED` into BullMQ. Consumers
+      arrive with dunning — a worker running an empty handler registry would be
+      code with nothing to do.
 - [x] VAT by market: DE 19%, UK 20%, IT 22%; reverse charge for B2B with a valid
       VAT ID. Three treatments rather than two: the UK is outside the EU, so a
       British business is an out-of-scope supply, not a reverse charge — both

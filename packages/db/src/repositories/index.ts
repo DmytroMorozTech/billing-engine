@@ -39,6 +39,15 @@ export {
 } from './idempotency.js';
 
 export {
+  type NewOutboxEvent,
+  type OutboxEvent,
+  claimUnpublished,
+  enqueue,
+  markPublished,
+  unpublishedCount,
+} from './outbox.js';
+
+export {
   type FinaliseInvoiceInput,
   type PersistInvoiceInput,
   type StoredInvoiceLine,

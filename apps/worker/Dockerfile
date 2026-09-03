@@ -1,10 +1,11 @@
 # syntax=docker/dockerfile:1
 
-# The API, and the migration runner: one image, two commands. The schema a
-# deploy applies is then by construction the one its code was built against.
+# The outbox relay. Same shape as the API image, and deliberately a separate
+# one: the two scale for different reasons and fail in different ways, and a
+# single image running two roles hides which of them is unhealthy.
 #
 # Build context is the repository root, not this directory — the workspace
-# packages the API depends on live outside it.
+# packages the worker depends on live outside it.
 
 FROM node:24-alpine AS build
 WORKDIR /app
@@ -21,14 +22,14 @@ COPY apps/worker/package.json apps/worker/
 # installed, which is the point of scoping the install to @billing/api.
 COPY apps/web/package.json apps/web/
 
-RUN npm ci --ignore-scripts --include-workspace-root -w @billing/api
+RUN npm ci --ignore-scripts --include-workspace-root -w @billing/worker
 
 COPY tsconfig.base.json ./
 COPY packages packages
-COPY apps/api apps/api
+COPY apps/worker apps/worker
 
 # Builds the referenced projects too — domain, platform, db.
-RUN npx tsc -b apps/api
+RUN npx tsc -b apps/worker
 
 FROM node:24-alpine AS runtime
 ENV NODE_ENV=production
@@ -42,23 +43,21 @@ COPY apps/api/package.json apps/api/
 COPY apps/worker/package.json apps/worker/
 COPY apps/web/package.json apps/web/
 
-RUN npm ci --omit=dev --ignore-scripts --include-workspace-root -w @billing/api
+RUN npm ci --omit=dev --ignore-scripts --include-workspace-root -w @billing/worker
 
 COPY --from=build /app/packages/domain/dist packages/domain/dist
 COPY --from=build /app/packages/platform/dist packages/platform/dist
 COPY --from=build /app/packages/db/dist packages/db/dist
-COPY --from=build /app/apps/api/dist apps/api/dist
+COPY --from=build /app/apps/worker/dist apps/worker/dist
 
 # Read at runtime by name, relative to packages/db/dist — not bundled.
 COPY packages/db/migrations packages/db/migrations
 
 USER node
-EXPOSE 8080
 
-# Asks the application, not the process table. /health touches PostgreSQL on
-# purpose: a container that is up but cannot reach the database is not healthy,
-# and saying otherwise wastes an on-call hour.
-HEALTHCHECK --interval=10s --timeout=5s --start-period=20s --retries=3 \
-  CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||8080)+'/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+# No healthcheck, and no port. A process-liveness probe would only repeat what
+# Docker already knows. What says whether the relay is working is the outbox
+# backlog — a number for a dashboard, not for a restart policy: a relay behind
+# a slow transport is doing its job and must not be killed for it.
 
-CMD ["node", "apps/api/dist/main.js"]
+CMD ["node", "apps/worker/dist/main.js"]

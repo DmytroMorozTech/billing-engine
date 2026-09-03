@@ -198,6 +198,15 @@ export interface IdempotencyKeysTable {
   created_at: DefaultedTimestamp;
 }
 
+export interface OutboxTable {
+  id: Generated<number>;
+  aggregate: string;
+  event_type: string;
+  payload: ColumnType<unknown, string, string>;
+  created_at: DefaultedTimestamp;
+  published_at: Date | null;
+}
+
 export interface SchemaMigrationsTable {
   name: string;
   checksum: string;
@@ -220,6 +229,7 @@ export interface Database {
   ledger_transfers: LedgerTransfersTable;
   ledger_entries: LedgerEntriesTable;
   idempotency_keys: IdempotencyKeysTable;
+  outbox: OutboxTable;
   schema_migrations: SchemaMigrationsTable;
 }
 

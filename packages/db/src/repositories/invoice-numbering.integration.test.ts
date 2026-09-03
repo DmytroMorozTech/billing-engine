@@ -227,6 +227,57 @@ describeIfDatabase('invoice numbering', () => {
     expect(rolledBack).toEqual({ status: 'draft', number: null });
   });
 
+  it('announces the issued invoice in the same transaction', async () => {
+    const invoiceId = await newDraft('2026-08-01');
+
+    const number = await db
+      .transaction()
+      .execute((tx) =>
+        finaliseInvoice(tx, invoiceId, { issuedOn: date('2026-09-01'), dueOn: date('2026-09-15') }),
+      );
+
+    const events = await db
+      .selectFrom('outbox')
+      .select(['aggregate', 'event_type', 'payload'])
+      .where('aggregate', '=', `invoice:${invoiceId}`)
+      .execute();
+
+    expect(events).toHaveLength(1);
+    expect(events[0]?.event_type).toBe('invoice.finalised');
+    expect(events[0]?.payload).toMatchObject({
+      invoiceId,
+      number,
+      // What a dunning schedule needs to know without reading the invoice back.
+      dueOn: '2026-09-15',
+      totalMinor: 2261,
+      currency: 'EUR',
+    });
+  });
+
+  it('announces nothing when the run that issued the invoice rolls back', async () => {
+    // The pair ADR-0005 is about: the number and the announcement of it are one
+    // decision, so they survive together or not at all.
+    const doomed = await newDraft('2026-09-01');
+
+    await expect(
+      db.transaction().execute(async (tx) => {
+        await finaliseInvoice(tx, doomed, {
+          issuedOn: date('2026-10-01'),
+          dueOn: date('2026-10-15'),
+        });
+        throw new Error('the billing run failed after announcing');
+      }),
+    ).rejects.toThrow('failed after announcing');
+
+    const events = await db
+      .selectFrom('outbox')
+      .select('id')
+      .where('aggregate', '=', `invoice:${doomed}`)
+      .execute();
+
+    expect(events).toEqual([]);
+  });
+
   it('refuses to number an invoice that does not exist', async () => {
     await expect(
       db.transaction().execute((tx) =>

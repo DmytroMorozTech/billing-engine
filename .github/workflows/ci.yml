@@ -65,8 +65,22 @@ jobs:
           --health-timeout 5s
           --health-retries 10
 
+      # The outbox transport. Its tests skip themselves when REDIS_URL is
+      # absent, which is exactly how a transport test stops being run at all —
+      # so CI provides one rather than relying on a developer having Docker up.
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
     env:
       DATABASE_URL: postgres://billing:billing@localhost:5432/billing
+      REDIS_URL: redis://localhost:6379
 
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5

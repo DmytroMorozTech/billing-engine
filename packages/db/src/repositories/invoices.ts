@@ -4,6 +4,7 @@ import type { Temporal } from 'temporal-polyfill';
 
 import { fromPlainDate } from '../mappers.js';
 import type { Database } from '../schema.js';
+import { enqueue } from './outbox.js';
 import type { Db } from './subscriptions.js';
 
 export interface PersistInvoiceInput {
@@ -127,7 +128,7 @@ export async function finaliseInvoice(
 ): Promise<string> {
   const invoice = await tx
     .selectFrom('invoices')
-    .select(['legal_entity_id', 'status', 'number'])
+    .select(['legal_entity_id', 'merchant_id', 'status', 'number', 'currency', 'total_minor'])
     .where('id', '=', invoiceId)
     .executeTakeFirst();
 
@@ -151,6 +152,23 @@ export async function finaliseInvoice(
     .where('id', '=', invoiceId)
     .where('status', '=', 'draft')
     .execute();
+
+  // Announced in the same transaction that issued it. A payment attempt is
+  // scheduled off the back of this, so an event describing an invoice that was
+  // rolled back would charge a merchant for something they were never billed.
+  await enqueue(tx, {
+    aggregate: `invoice:${invoiceId}`,
+    eventType: 'invoice.finalised',
+    payload: {
+      invoiceId,
+      merchantId: invoice.merchant_id,
+      number,
+      issuedOn: fromPlainDate(input.issuedOn),
+      dueOn: fromPlainDate(input.dueOn),
+      totalMinor: invoice.total_minor,
+      currency: invoice.currency,
+    },
+  });
 
   return number;
 }

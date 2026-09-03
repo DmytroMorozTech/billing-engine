@@ -1,7 +1,7 @@
 # Local development infrastructure.
 #
-# The worker and psp services join this file once those apps exist — a compose
-# file that references missing Dockerfiles is worse than a short one.
+# The psp service joins this file once that app exists — a compose file that
+# references a missing Dockerfile is worse than a short one.
 
 services:
   # Runs once and exits. Migrations deliberately do not happen on API startup:
@@ -38,6 +38,27 @@ services:
       - '${API_PORT:-8081}:8080'
     depends_on:
       postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  # Publishes the outbox. Its own image rather than a second role for the API
+  # image: the two scale for different reasons and fail in different ways.
+  worker:
+    build:
+      context: .
+      dockerfile: apps/worker/Dockerfile
+    image: billing-worker
+    container_name: billing-worker
+    environment:
+      DATABASE_URL: postgres://billing:billing@postgres:5432/billing
+      REDIS_URL: redis://redis:6379
+      OUTBOX_POLL_INTERVAL_MS: 1000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
       migrate:
         condition: service_completed_successfully
