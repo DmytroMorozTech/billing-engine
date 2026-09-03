@@ -17,6 +17,7 @@ import { invoiceLines, periodAlreadyInvoiced, persistInvoiceDraft } from './invo
 import {
   balance,
   ensureMerchantAccounts,
+  invoicePostings,
   merchantWalletKey,
   postTransfer,
   systemTotal,
@@ -226,11 +227,12 @@ describeIfDatabase('a billing run end to end', () => {
         kind: 'invoice_charge',
         occurredAt: new Date('2026-10-01T00:00:00Z'),
         reference: { type: 'invoice', id: INVOICE },
-        postings: [
-          { accountKey: merchantWalletKey(MERCHANT), amount: eur(-draft.total.amount) },
-          { accountKey: 'platform:revenue', amount: draft.subtotal },
-          { accountKey: 'platform:vat_payable', amount: draft.vat },
-        ],
+        postings: invoicePostings({
+          merchantId: MERCHANT,
+          subtotal: draft.subtotal,
+          vat: draft.vat,
+          total: draft.total,
+        }),
       }),
     );
 

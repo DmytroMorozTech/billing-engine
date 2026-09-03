@@ -1,5 +1,5 @@
 import type { CurrencyCode, Money } from '@billing/domain';
-import { money, sum, zero } from '@billing/domain';
+import { money, negate, sum, zero } from '@billing/domain';
 import { sql, type Transaction } from 'kysely';
 
 import type { Database } from '../schema.js';
@@ -26,6 +26,26 @@ export class UnbalancedTransferError extends Error {
 }
 
 /**
+ * A posting of zero reached the ledger.
+ *
+ * Either it means nothing — no money moved, so there is nothing to record — or
+ * an amount that was supposed to be computed never was. The second is a bug
+ * worth hearing about, and it is indistinguishable from the first once the row
+ * is written, so both are refused.
+ *
+ * A line that is legitimately zero is simply not built: see
+ * {@link invoicePostings}.
+ */
+export class ZeroPostingError extends Error {
+  constructor(accountKey: string) {
+    super(
+      `Posting to ${accountKey} is zero. A line that carries no money is not recorded; omit it when it is legitimately zero.`,
+    );
+    this.name = 'ZeroPostingError';
+  }
+}
+
+/**
  * Writes one movement of money.
  *
  * The zero-sum check runs here as well as in the database. That is not
@@ -45,6 +65,10 @@ export async function postTransfer(
 
   const byCurrency = new Map<CurrencyCode, Money[]>();
   for (const posting of input.postings) {
+    if (posting.amount.amount === 0) {
+      throw new ZeroPostingError(posting.accountKey);
+    }
+
     const existing = byCurrency.get(posting.amount.currency) ?? [];
     existing.push(posting.amount);
     byCurrency.set(posting.amount.currency, existing);
@@ -79,6 +103,47 @@ export async function postTransfer(
       })),
     )
     .execute();
+}
+
+export interface InvoiceAmounts {
+  merchantId: string;
+  subtotal: Money;
+  vat: Money;
+  /** `subtotal + vat`. Passed in rather than re-added, so one rounding decides both. */
+  total: Money;
+}
+
+/**
+ * The ledger postings an invoice becomes.
+ *
+ * The VAT line is omitted when there is no VAT, rather than written as zero.
+ * That case is not an edge: reverse charge for a B2B merchant with a valid VAT
+ * ID produces a legitimately zero liability, and a zero row would record that
+ * no money moved to an account — which is exactly what "no row" already says.
+ *
+ * This is the only place allowed to decide a line should not exist.
+ * {@link postTransfer} still refuses any zero handed to it, so an amount that
+ * came out zero by mistake anywhere else fails loudly instead of vanishing.
+ *
+ * Signs are taken as given, so a credit note is the same call with negative
+ * amounts and needs no second function.
+ */
+export function invoicePostings(invoice: InvoiceAmounts): LedgerPosting[] {
+  // Nothing owed, nothing moved, nothing to record.
+  if (invoice.total.amount === 0) {
+    return [];
+  }
+
+  const postings: LedgerPosting[] = [
+    { accountKey: merchantWalletKey(invoice.merchantId), amount: negate(invoice.total) },
+    { accountKey: 'platform:revenue', amount: invoice.subtotal },
+  ];
+
+  if (invoice.vat.amount !== 0) {
+    postings.push({ accountKey: 'platform:vat_payable', amount: invoice.vat });
+  }
+
+  return postings;
 }
 
 /** The wallet account key for a merchant. One place, so it cannot drift. */

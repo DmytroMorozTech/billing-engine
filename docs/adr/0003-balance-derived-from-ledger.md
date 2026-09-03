@@ -41,13 +41,33 @@ correction visible in the history — which is what a support agent needs to see
 Every write is wrapped in a single database transaction, so a transfer either
 lands completely or not at all.
 
+### A posting of zero is never recorded
+
+`ledger_entries` carries `CHECK (amount_minor <> 0)`, and `postTransfer` refuses
+a zero posting before it gets that far, so the failure names the account rather
+than arriving as a constraint violation.
+
+The rule earns its place by what it catches: an amount that was supposed to be
+computed and was not — a proration that rounded away, a commission line whose
+rate never loaded. Written as a zero row, that is indistinguishable from a line
+that is legitimately nothing.
+
+Lines that are legitimately zero therefore are not *dropped*, they are not
+*built*. `invoicePostings` is the single place that decides this, and the case it
+exists for is reverse charge: a B2B merchant with a valid VAT ID owes no VAT
+here, so the invoice has two postings rather than three. Relaxing the constraint
+instead would have bought that one case at the price of the check on every other,
+and the entries are append-only — zero rows written today could never be removed.
+
 ## Consequences
 
 - The invariant "every balance is explainable by the entries that produced it"
   holds by construction, not by discipline.
 - A property-based test generates random sequences of operations and asserts that
   the sum of all entries is zero afterwards. This is the strongest single test in
-  the project.
+  the project. It builds its charges and refunds through `invoicePostings`, the
+  same call the billing run uses, so a generated zero VAT exercises reverse
+  charge rather than a shape production code would never produce.
 - Reading a balance costs an aggregate query. At this project's scale that is
   irrelevant. If it ever mattered, the fix is a materialised view or a snapshot
   row with a `computed_up_to_entry_id` watermark — a cache that can be rebuilt and

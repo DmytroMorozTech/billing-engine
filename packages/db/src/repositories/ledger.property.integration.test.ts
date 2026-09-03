@@ -10,10 +10,12 @@ import type { Database } from '../schema.js';
 import {
   balance,
   ensureMerchantAccounts,
+  invoicePostings,
   merchantWalletKey,
   postTransfer,
   systemTotal,
   UnbalancedTransferError,
+  ZeroPostingError,
 } from './ledger.js';
 
 const connectionString = process.env.DATABASE_URL;
@@ -101,23 +103,23 @@ describeIfDatabase('ledger invariants under random sequences', () => {
   async function apply(op: Operation): Promise<void> {
     const wallet = merchantWalletKey(MERCHANTS[op.merchant] as string);
 
+    // Charges and refunds are built the way the billing run builds them, sign
+    // included — so a generated `vat: 0` exercises reverse charge rather than
+    // a shape production code would never produce.
+    const sign = op.kind === 'refund' ? -1 : 1;
+
     const postings =
-      op.kind === 'charge'
+      op.kind === 'payment'
         ? [
-            { accountKey: wallet, amount: eur(-(op.net + op.vat)) },
-            { accountKey: 'platform:revenue', amount: eur(op.net) },
-            { accountKey: 'platform:vat_payable', amount: eur(op.vat) },
+            { accountKey: wallet, amount: eur(op.amount) },
+            { accountKey: 'platform:bank', amount: eur(-op.amount) },
           ]
-        : op.kind === 'refund'
-          ? [
-              { accountKey: wallet, amount: eur(op.net + op.vat) },
-              { accountKey: 'platform:revenue', amount: eur(-op.net) },
-              { accountKey: 'platform:vat_payable', amount: eur(-op.vat) },
-            ]
-          : [
-              { accountKey: wallet, amount: eur(op.amount) },
-              { accountKey: 'platform:bank', amount: eur(-op.amount) },
-            ];
+        : invoicePostings({
+            merchantId: MERCHANTS[op.merchant] as string,
+            subtotal: eur(sign * op.net),
+            vat: eur(sign * op.vat),
+            total: eur(sign * (op.net + op.vat)),
+          });
 
     await db.transaction().execute((tx) =>
       postTransfer(tx, {
@@ -178,7 +180,10 @@ describeIfDatabase('ledger invariants under random sequences', () => {
   it('rejects an unbalanced transfer and leaves the total untouched', async () => {
     await fc.assert(
       fc.asyncProperty(
-        fc.integer({ min: 1, max: 100_000 }),
+        // Above the discrepancy, so the second posting is never itself zero:
+        // that is a different rejection (ZeroPostingError) and this test is
+        // about the transfer not balancing.
+        fc.integer({ min: 1_000, max: 100_000 }),
         fc.integer({ min: 1, max: 999 }),
         async (amount, discrepancy) => {
           await expect(
@@ -200,5 +205,27 @@ describeIfDatabase('ledger invariants under random sequences', () => {
       ),
       { numRuns: 10 },
     );
+  }, 60_000);
+
+  it('rejects a posting of zero and names the account it came from', async () => {
+    // A zero posting is either meaningless or a bug — an amount that was
+    // supposed to be computed and was not. The database forbids it; this says
+    // so at the call site, where the account key is still known.
+    const promise = db.transaction().execute((tx) =>
+      postTransfer(tx, {
+        id: nextId(),
+        kind: 'charge',
+        occurredAt: new Date('2026-09-01T00:00:00Z'),
+        postings: [
+          { accountKey: merchantWalletKey(MERCHANTS[0] as string), amount: eur(-1000) },
+          { accountKey: 'platform:revenue', amount: eur(1000) },
+          { accountKey: 'platform:vat_payable', amount: eur(0) },
+        ],
+      }),
+    );
+
+    await expect(promise).rejects.toThrow(ZeroPostingError);
+    await expect(promise).rejects.toThrow('platform:vat_payable');
+    expect((await systemTotal(db, 'EUR')).amount).toBe(0);
   }, 60_000);
 });

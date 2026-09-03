@@ -19,6 +19,7 @@ import { invoiceLines, persistInvoiceDraft } from './invoices.js';
 import {
   balance,
   ensureMerchantAccounts,
+  invoicePostings,
   merchantWalletKey,
   postTransfer,
   systemTotal,
@@ -105,11 +106,12 @@ describeIfDatabase('Stage 1 acceptance scenario', () => {
         kind: job.kind,
         occurredAt: new Date(clock.now().epochMilliseconds),
         reference: { type: 'invoice', id: invoiceId },
-        postings: [
-          { accountKey: merchantWalletKey(MERCHANT), amount: eur(-draft.total.amount) },
-          { accountKey: 'platform:revenue', amount: draft.subtotal },
-          { accountKey: 'platform:vat_payable', amount: draft.vat },
-        ],
+        postings: invoicePostings({
+          merchantId: MERCHANT,
+          subtotal: draft.subtotal,
+          vat: draft.vat,
+          total: draft.total,
+        }),
       });
     });
 

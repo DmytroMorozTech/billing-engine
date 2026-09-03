@@ -9,11 +9,14 @@ export {
 } from './subscriptions.js';
 
 export {
+  type InvoiceAmounts,
   type LedgerPosting,
   type TransferInput,
   UnbalancedTransferError,
+  ZeroPostingError,
   balance,
   ensureMerchantAccounts,
+  invoicePostings,
   merchantWalletKey,
   postTransfer,
   systemTotal,
