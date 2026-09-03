@@ -1,0 +1,18 @@
+# Keeps the build context small, and keeps host artefacts out of the image.
+# node_modules especially: copying a Windows install over the one npm just
+# resolved inside the container is how a native binding ends up wrong.
+node_modules
+**/node_modules
+dist
+**/dist
+**/*.tsbuildinfo
+coverage
+.git
+.github
+.env
+.env.*
+!.env.example
+docs
+*.md
+# apps/web stays in the context: the API image copies only its package.json,
+# which npm needs to read the workspace globs.

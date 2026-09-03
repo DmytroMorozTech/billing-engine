@@ -18,8 +18,9 @@ Small, but everything after it depends on these choices being right.
 
 - [x] npm workspaces skeleton per [ADR-0007](docs/adr/0007-repository-structure.md)
 - [x] `docker-compose.yml`: postgres and redis
-- [ ] `docker-compose.yml`: api, worker, psp — added with the apps themselves,
-      since a compose file referencing missing Dockerfiles is worse than a short one
+- [x] `docker-compose.yml`: api, plus a one-shot `migrate` service it waits on.
+      worker and psp join when those apps exist — a compose file referencing
+      missing Dockerfiles is worse than a short one
 - [x] `packages/domain` with `Money` and `Clock`, no I/O
 - [x] ESLint rules that enforce the invariants rather than merely documenting them:
       no `Date` or `Temporal.Now` inside `packages/domain`; no `pg` / `ioredis` /
@@ -85,8 +86,10 @@ balances.
 - [ ] **Dunning:** payment fails → retries on a schedule → grace period →
       suspension. Driven by the PSP simulator's deterministic rejection rules.
 - [ ] PSP simulator in Go (`apps/psp`), ~200–300 lines
-- [ ] Idempotency on every write endpoint, Postgres-backed
-      ([ADR-0004](docs/adr/0004-idempotency-in-postgres.md))
+- [x] Idempotency on every write endpoint, Postgres-backed
+      ([ADR-0004](docs/adr/0004-idempotency-in-postgres.md)). The key row commits
+      in the same transaction as the effect it protects, and the scope includes
+      the merchant id — two merchants can legitimately send an identical payload.
 - [ ] Transactional outbox with a pluggable publisher
       ([ADR-0005](docs/adr/0005-outbox-with-pluggable-publisher.md))
 - [ ] VAT by market: DE 19%, UK 20%, IT 22%; reverse charge for B2B with a valid
@@ -102,7 +105,8 @@ balances.
 - [ ] Property test that a proration credit never exceeds what was actually paid
       for the period — belongs with the credit notes it describes
 - [ ] OpenAPI generated from the Fastify JSON Schemas
-- [ ] Errors as RFC 9457 Problem Details
+- [x] Errors as RFC 9457 Problem Details, including the failures Fastify raises
+      itself — a client never has to tell our error shape from the framework's
 
 **Property test:** invoice numbers are sequential per legal entity with no gaps,
 under randomised concurrency and rollbacks.

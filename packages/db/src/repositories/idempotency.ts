@@ -29,9 +29,13 @@ export function hashRequest(body: unknown): string {
  * never charges them.
  *
  * - `claimed` — first time; go and do the work, then call {@link recordResponse}.
- * - `replay`  — same key, same payload; return the stored response verbatim.
- *               Not a conflict: a client retrying because it never saw the
- *               first response needs the result.
+ * - `replay`  — same key, same payload; return the stored response. Not a
+ *               conflict: a client retrying because it never saw the first
+ *               response needs the result. The same data, not the same bytes —
+ *               JSONB stores a parsed value and normalises key order, so a
+ *               replayed body may order its keys differently. Nothing here
+ *               promises a stable serialisation, and a client that needs one
+ *               would need the column to be `json` or `text` instead.
  * - `conflict` — same key, different payload. The client reused a key for a
  *                different request, which is a mistake worth reporting.
  */

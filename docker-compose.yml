@@ -1,10 +1,48 @@
 # Local development infrastructure.
 #
-# Only the backing services live here for now. The api, worker and psp services
-# join this file once those apps exist — a compose file that references missing
-# Dockerfiles is worse than a short one.
+# The worker and psp services join this file once those apps exist — a compose
+# file that references missing Dockerfiles is worse than a short one.
 
 services:
+  # Runs once and exits. Migrations deliberately do not happen on API startup:
+  # two instances booting together would race for the same schema, and a
+  # rolled-back deploy must not quietly take the schema with it.
+  #
+  # Same image as the API, so the schema applied is the one that image's code
+  # was built against.
+  migrate:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    image: billing-api
+    command: ['node', 'packages/db/dist/cli.js', 'up']
+    environment:
+      DATABASE_URL: postgres://billing:billing@postgres:5432/billing
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: 'no'
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    image: billing-api
+    container_name: billing-api
+    environment:
+      # The internal port, not the published one: inside the compose network
+      # postgres answers on 5432 regardless of where it is published outside.
+      DATABASE_URL: postgres://billing:billing@postgres:5432/billing
+      PORT: 8080
+    ports:
+      - '${API_PORT:-8081}:8080'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
   postgres:
     image: postgres:17-alpine
     container_name: billing-postgres

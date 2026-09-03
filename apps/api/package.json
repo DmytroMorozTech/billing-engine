@@ -4,10 +4,10 @@
   "private": true,
   "type": "module",
   "description": "HTTP API",
-  "main": "./dist/api.js",
+  "main": "./dist/main.js",
   "scripts": {
     "build": "tsc -b",
-    "start": "node dist/api.js"
+    "start": "node dist/main.js"
   },
   "dependencies": {
     "@billing/db": "*",

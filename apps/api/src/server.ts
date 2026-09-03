@@ -48,8 +48,9 @@ interface HandlerResult<T> {
  *
  * The key row and the effect commit together, which is the whole reason the
  * keys live in PostgreSQL and not Redis (ADR-0004). A replay returns the
- * original response verbatim rather than a conflict: a client that retried
- * because it never saw the first response needs the result, not an error.
+ * original response rather than a conflict: a client that retried because it
+ * never saw the first response needs the result, not an error. The same data,
+ * though not necessarily the same bytes — see `claimKey`.
  */
 async function withIdempotency<T>(
   deps: ApiDependencies,
