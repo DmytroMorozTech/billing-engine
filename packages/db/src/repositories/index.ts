@@ -39,6 +39,14 @@ export {
 } from './idempotency.js';
 
 export {
+  type NewPaymentAttempt,
+  type PaymentAttempt,
+  attemptsFor,
+  recordAttempt,
+  settleInvoice,
+} from './payments.js';
+
+export {
   type NewOutboxEvent,
   type OutboxEvent,
   claimUnpublished,

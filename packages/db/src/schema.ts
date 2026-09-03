@@ -198,6 +198,19 @@ export interface IdempotencyKeysTable {
   created_at: DefaultedTimestamp;
 }
 
+export interface PaymentAttemptsTable {
+  id: string;
+  invoice_id: string;
+  attempt: number;
+  status: 'succeeded' | 'failed';
+  decline_code: string | null;
+  psp_charge_id: string;
+  amount_minor: MinorUnits;
+  currency: string;
+  attempted_at: Date;
+  created_at: DefaultedTimestamp;
+}
+
 export interface OutboxTable {
   id: Generated<number>;
   aggregate: string;
@@ -229,6 +242,7 @@ export interface Database {
   ledger_transfers: LedgerTransfersTable;
   ledger_entries: LedgerEntriesTable;
   idempotency_keys: IdempotencyKeysTable;
+  payment_attempts: PaymentAttemptsTable;
   outbox: OutboxTable;
   schema_migrations: SchemaMigrationsTable;
 }

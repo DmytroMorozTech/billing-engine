@@ -106,9 +106,19 @@ jobs:
     env:
       DATABASE_URL: postgres://billing:billing@localhost:5432/billing
       REDIS_URL: redis://localhost:6379
+      PSP_URL: http://localhost:8082
 
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      # Built here rather than declared as a service: the simulator is this
+      # repository's own image and is not published anywhere. Without it the
+      # payment client tests skip themselves, which is how a test at a service
+      # boundary quietly stops running.
+      - name: Start the payment simulator
+        run: |
+          docker build -t billing-psp apps/psp
+          docker run -d --name psp -p 8082:8082 billing-psp
 
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
