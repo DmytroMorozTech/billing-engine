@@ -6,7 +6,7 @@
   "description": "A billing and subscriptions engine for a small-business payments platform",
   "license": "MIT",
   "engines": {
-    "node": ">=22"
+    "node": ">=24"
   },
   "workspaces": [
     "packages/*",
@@ -19,7 +19,8 @@
     "test:watch": "vitest",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "verify": "npm run lint && npm run typecheck && npm run test"
+    "verify": "npm run lint && npm run typecheck && npm run test",
+    "lockfile": "npm install --package-lock-only --ignore-scripts"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

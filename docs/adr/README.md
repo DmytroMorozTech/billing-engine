@@ -17,3 +17,4 @@ the old one and the old one is marked `Superseded by ADR-XXXX`.
 | [0007](0007-repository-structure.md) | npm workspaces monorepo | Accepted |
 | [0008](0008-frontend-stack.md) | Circuit UI as the frontend foundation | Accepted |
 | [0009](0009-database-schema-and-constraints.md) | Invariants belong in the database | Accepted |
+| [0010](0010-lockfile-generation.md) | The lockfile is generated with `--package-lock-only` | Accepted |
