@@ -90,9 +90,28 @@ whichever kernel it runs on; the objection applies to running a real
 `npm ci` on both sides: the Docker build and the Windows working copy.
 
 So the repair path, when a pruned lockfile has already been committed, is to
-regenerate it from the manifests in a container. Day-to-day dependency changes
-still go through `npm run lockfile`, which is enough as long as the lockfile it
-starts from is intact.
+regenerate it from the manifests in a container.
+
+**And the routine path is the same one.** The sentence that stood here claimed
+`npm run lockfile` was enough for ordinary dependency changes as long as the
+lockfile it started from was intact. Adding `bullmq` to `packages/platform` the
+next day disproved it: from an intact 1219-entry lockfile, `npm run lockfile` on
+Windows produced 1191 entries with `bullmq` present and all twelve
+`@parcel/watcher` binaries gone. It resolves from the installed `node_modules`,
+which on Windows has never contained them.
+
+The container regeneration produced 1241 entries with `bullmq` and all twelve,
+and `npm ci` then succeeded on both Linux and Windows. On this setup, therefore:
+
+```
+npm install --package-lock-only --ignore-scripts   # in node:24-alpine, manifests only
+npm ci                                             # everywhere
+```
+
+`npm run lockfile` stays in `package.json` because it is the correct command on
+a machine whose `node_modules` is not platform-pruned — a Linux developer, or
+CI. It is not correct here, and the difference is invisible until `npm ci` runs
+on the other platform.
 
 ## Consequences
 
