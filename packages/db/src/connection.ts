@@ -43,6 +43,16 @@ export function installTypeParsers(): void {
 export interface DatabaseConfig {
   connectionString: string;
   maxConnections?: number;
+  /**
+   * PostgreSQL schema to work in. Defaults to `public`.
+   *
+   * Integration test files each take their own, because they create and drop
+   * the whole schema in `beforeAll` and Vitest runs files in parallel — sharing
+   * `public` means one file dropping the tables another is mid-way through
+   * using. `public` stays on the search path so the `btree_gist` operator
+   * classes remain reachable.
+   */
+  schema?: string;
 }
 
 export function createPool(config: DatabaseConfig): pg.Pool {
@@ -53,6 +63,7 @@ export function createPool(config: DatabaseConfig): pg.Pool {
     // Fail fast rather than queue forever behind an exhausted pool: a billing
     // run that hangs is harder to diagnose than one that errors.
     connectionTimeoutMillis: 5_000,
+    ...(config.schema ? { options: `-c search_path=${config.schema},public` } : {}),
   });
 }
 

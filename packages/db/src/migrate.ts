@@ -125,12 +125,18 @@ export async function status(pool: pg.Pool, dir = MIGRATIONS_DIR): Promise<Migra
   }
 }
 
-/** Drops and recreates the public schema. Tests only. */
-export async function resetSchema(pool: pg.Pool): Promise<void> {
+/**
+ * Drops and recreates a schema. Tests only.
+ *
+ * `IF EXISTS` because a test file may be the first to touch its own schema,
+ * and because two files racing on the same one should fail loudly on a
+ * constraint rather than confusingly on a missing schema.
+ */
+export async function resetSchema(pool: pg.Pool, schema = 'public'): Promise<void> {
   const client = await pool.connect();
   try {
-    await client.query('DROP SCHEMA public CASCADE');
-    await client.query('CREATE SCHEMA public');
+    await client.query(`DROP SCHEMA IF EXISTS "${schema}" CASCADE`);
+    await client.query(`CREATE SCHEMA "${schema}"`);
   } finally {
     client.release();
   }

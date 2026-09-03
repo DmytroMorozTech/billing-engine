@@ -15,3 +15,5 @@ export {
   resetSchema,
   status,
 } from './migrate.js';
+export * from './mappers.js';
+export * from './repositories/index.js';

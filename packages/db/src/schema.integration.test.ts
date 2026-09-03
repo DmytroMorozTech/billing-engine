@@ -15,6 +15,9 @@ import { migrate, resetSchema } from './migrate.js';
 const connectionString = process.env.DATABASE_URL;
 const describeIfDatabase = connectionString ? describe : describe.skip;
 
+/** Own schema: Vitest runs test files in parallel and this one drops its tables. */
+const SCHEMA = 'test_constraints';
+
 const MERCHANT = '00000000-0000-7000-8000-000000000001';
 const SUBSCRIPTION = '00000000-0000-7000-8000-000000000002';
 
@@ -22,8 +25,8 @@ describeIfDatabase('database constraints', () => {
   let pool: pg.Pool;
 
   beforeAll(async () => {
-    pool = createPool({ connectionString: connectionString as string });
-    await resetSchema(pool);
+    pool = createPool({ connectionString: connectionString as string, schema: SCHEMA });
+    await resetSchema(pool, SCHEMA);
     await migrate(pool);
 
     await pool.query(

@@ -5,7 +5,10 @@
 -- operators to GiST, which is what lets rate_intervals combine
 -- `subscription_id WITH =` and `daterange(...) WITH &&` in one exclusion
 -- constraint. Without it Postgres refuses the index outright.
-CREATE EXTENSION IF NOT EXISTS btree_gist;
+-- Installed into public explicitly: integration tests each run in their own
+-- schema with search_path = "<schema>,public", and the GiST operator classes
+-- have to be findable from all of them.
+CREATE EXTENSION IF NOT EXISTS btree_gist SCHEMA public;
 
 -- Currencies carry their own minor-unit exponent. Nothing in this system
 -- hardcodes 100: JPY has no minor unit, and that difference has to survive the

@@ -16,6 +16,9 @@ type Timestamp = ColumnType<Date, Date | string | undefined, Date | string>;
 /** A `DATE`. Kept as an ISO `YYYY-MM-DD` string, never a JS Date. */
 type IsoDate = string;
 
+/** Same nesting caveat as DefaultedMinorUnits below. */
+type DefaultedTimestamp = ColumnType<Date, Date | string | undefined, Date | string>;
+
 /**
  * `BIGINT` carrying money in minor units.
  *
@@ -25,6 +28,14 @@ type IsoDate = string;
  * them back to numbers on read. See `connection.ts`.
  */
 type MinorUnits = ColumnType<number, number, number>;
+
+/**
+ * A money column the database defaults. Written as a ColumnType directly
+ * rather than `Generated<MinorUnits>`: nesting one ColumnType inside another
+ * stops Kysely unwrapping the select type, and the row then carries the
+ * wrapper instead of a number.
+ */
+type DefaultedMinorUnits = ColumnType<number, number | undefined, number>;
 
 export interface CurrenciesTable {
   code: string;
@@ -56,9 +67,9 @@ export interface PlansTable {
   in_person_rate_bps: number;
   online_rate_bps: number;
   moto_rate_bps: number;
-  moto_fixed_fee_minor: Generated<MinorUnits>;
+  moto_fixed_fee_minor: DefaultedMinorUnits;
   active: Generated<boolean>;
-  created_at: Generated<Timestamp>;
+  created_at: DefaultedTimestamp;
 }
 
 export interface MerchantsTable {
@@ -70,7 +81,7 @@ export interface MerchantsTable {
   name: string;
   billing_time_zone: string;
   vat_id: string | null;
-  created_at: Generated<Timestamp>;
+  created_at: DefaultedTimestamp;
 }
 
 export interface SubscriptionsTable {
@@ -80,7 +91,7 @@ export interface SubscriptionsTable {
   status: 'active' | 'past_due' | 'suspended' | 'cancelled';
   started_on: IsoDate;
   cancelled_on: IsoDate | null;
-  created_at: Generated<Timestamp>;
+  created_at: DefaultedTimestamp;
 }
 
 export interface RateIntervalsTable {
@@ -92,10 +103,10 @@ export interface RateIntervalsTable {
   in_person_rate_bps: number;
   online_rate_bps: number;
   moto_rate_bps: number;
-  moto_fixed_fee_minor: Generated<MinorUnits>;
+  moto_fixed_fee_minor: DefaultedMinorUnits;
   effective_from: IsoDate;
   effective_to: IsoDate | null;
-  recorded_at: Generated<Timestamp>;
+  recorded_at: DefaultedTimestamp;
   superseded_at: Timestamp | null;
   superseded_by: string | null;
 }
@@ -108,7 +119,7 @@ export interface TransactionsTable {
   channel: 'in_person' | 'online' | 'moto';
   occurred_at: Timestamp;
   occurred_on: IsoDate;
-  recorded_at: Generated<Timestamp>;
+  recorded_at: DefaultedTimestamp;
   invoiced_by: string | null;
 }
 
@@ -133,7 +144,7 @@ export interface InvoicesTable {
   total_minor: MinorUnits;
   issued_on: IsoDate | null;
   due_on: IsoDate | null;
-  created_at: Generated<Timestamp>;
+  created_at: DefaultedTimestamp;
 }
 
 export interface InvoiceLinesTable {
@@ -154,7 +165,7 @@ export interface LedgerAccountsTable {
   kind: 'asset' | 'liability' | 'revenue' | 'expense';
   merchant_id: string | null;
   currency: string;
-  created_at: Generated<Timestamp>;
+  created_at: DefaultedTimestamp;
 }
 
 export interface LedgerTransfersTable {
@@ -163,7 +174,7 @@ export interface LedgerTransfersTable {
   occurred_at: Timestamp;
   reference_type: string | null;
   reference_id: string | null;
-  created_at: Generated<Timestamp>;
+  created_at: DefaultedTimestamp;
 }
 
 export interface LedgerEntriesTable {
@@ -172,13 +183,13 @@ export interface LedgerEntriesTable {
   account_key: string;
   amount_minor: MinorUnits;
   currency: string;
-  created_at: Generated<Timestamp>;
+  created_at: DefaultedTimestamp;
 }
 
 export interface SchemaMigrationsTable {
   name: string;
   checksum: string;
-  applied_at: Generated<Timestamp>;
+  applied_at: DefaultedTimestamp;
 }
 
 export interface Database {
