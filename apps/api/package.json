@@ -1,0 +1,19 @@
+{
+  "name": "@billing/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "HTTP API",
+  "main": "./dist/api.js",
+  "scripts": {
+    "build": "tsc -b",
+    "start": "node dist/api.js"
+  },
+  "dependencies": {
+    "@billing/db": "*",
+    "@billing/domain": "*",
+    "@billing/platform": "*",
+    "fastify": "^5.12.1",
+    "temporal-polyfill": "^1.0.4"
+  }
+}

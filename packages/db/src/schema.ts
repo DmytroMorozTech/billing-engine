@@ -186,6 +186,16 @@ export interface LedgerEntriesTable {
   created_at: DefaultedTimestamp;
 }
 
+export interface IdempotencyKeysTable {
+  key: string;
+  endpoint: string;
+  request_hash: string;
+  response_status: number;
+  /** Stored as written; returned verbatim on replay. */
+  response_body: ColumnType<unknown, string, string>;
+  created_at: DefaultedTimestamp;
+}
+
 export interface SchemaMigrationsTable {
   name: string;
   checksum: string;
@@ -207,6 +217,7 @@ export interface Database {
   ledger_accounts: LedgerAccountsTable;
   ledger_transfers: LedgerTransfersTable;
   ledger_entries: LedgerEntriesTable;
+  idempotency_keys: IdempotencyKeysTable;
   schema_migrations: SchemaMigrationsTable;
 }
 

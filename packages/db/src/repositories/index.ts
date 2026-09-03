@@ -2,6 +2,7 @@ export {
   type Db,
   applyPlanChange,
   currentRateIntervals,
+  findPlanTerms,
   openInitialInterval,
   planTerms,
   rateIntervalsAsKnownAt,
@@ -24,6 +25,15 @@ export {
   markInvoiced,
   uninvoicedInPeriod,
 } from './transactions.js';
+
+export {
+  type IdempotencyLookup,
+  type StoredResponse,
+  claimKey,
+  hashRequest,
+  pruneKeys,
+  recordResponse,
+} from './idempotency.js';
 
 export {
   type PersistInvoiceInput,

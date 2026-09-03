@@ -1,8 +1,17 @@
 {
   "files": [],
   "references": [
-    { "path": "./packages/domain" },
-    { "path": "./packages/platform" },
-    { "path": "./packages/db" }
+    {
+      "path": "./packages/domain"
+    },
+    {
+      "path": "./packages/platform"
+    },
+    {
+      "path": "./packages/db"
+    },
+    {
+      "path": "./apps/api"
+    }
   ]
 }

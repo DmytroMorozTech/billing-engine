@@ -74,7 +74,7 @@ export async function rateIntervalsAsKnownAt(
   return rows.map(toRateInterval);
 }
 
-export async function planTerms(db: Db, planId: string): Promise<RateTerms> {
+export async function findPlanTerms(db: Db, planId: string): Promise<RateTerms | undefined> {
   const row = await db
     .selectFrom('plans')
     .select([
@@ -87,9 +87,17 @@ export async function planTerms(db: Db, planId: string): Promise<RateTerms> {
       'moto_fixed_fee_minor',
     ])
     .where('id', '=', planId)
-    .executeTakeFirstOrThrow();
+    .executeTakeFirst();
 
-  return termsFromRow(row.id, row);
+  return row === undefined ? undefined : termsFromRow(row.id, row);
+}
+
+export async function planTerms(db: Db, planId: string): Promise<RateTerms> {
+  const terms = await findPlanTerms(db, planId);
+  if (terms === undefined) {
+    throw new Error(`No plan with id ${planId}`);
+  }
+  return terms;
 }
 
 /**
