@@ -49,6 +49,8 @@ export {
   daysInPeriod,
   daysBetween,
   contains,
+  todayIn,
+  currentPeriod,
 } from './time/billing-cycle.js';
 
 export {
@@ -89,3 +91,12 @@ export {
   PlanChangeError,
   preparePlanChange,
 } from './subscription/plan-change.js';
+
+export {
+  type DeterministicSchedulerOptions,
+  type JobHandler,
+  type JobQueue,
+  type ScheduledJob,
+  DeterministicScheduler,
+  RunawaySchedulerError,
+} from './time/scheduler.js';

@@ -42,27 +42,37 @@ sketched**: because a plan buys a commission rate rather than a feature set
 ingestion and rating are core, not an add-on. Without them the pricing model does
 not exist.
 
-- [ ] Plan catalogue: Standard (€0 / 1.69%), Payments Plus (€19 / 0.99%)
-- [ ] Merchants with a market and a billing time zone
-- [ ] Subscriptions with an **anchor date**, correct anniversary handling
+- [x] Plan catalogue: Standard (€0 / 1.69%), Payments Plus (€19 / 0.99%)
+- [x] Merchants with a market and a billing time zone
+- [x] Subscriptions with an **anchor date**, correct anniversary handling
       (31 Jan → 28 Feb → **31 Mar**, not 28 Mar)
-- [ ] Transaction ingestion and **rating per transaction** against the rate
+- [x] Transaction ingestion and **rating per transaction** against the rate
       interval containing its `occurred_at`
-- [ ] Rate intervals opened and closed by plan changes
-- [ ] Billing period calculation in the merchant's time zone
-- [ ] Invoice generation: prorated subscription fee + commission lines per rate
+- [x] Rate intervals opened and closed by plan changes, prospectively and
+      backdated
+- [x] Billing period calculation in the merchant's time zone
+- [x] Invoice generation: prorated subscription fee + commission lines per rate
       segment
-- [ ] **Derivation recorded at computation time** and stored with each line
+- [x] **Derivation recorded at computation time** and stored with each line
       (format in [frontend-spec.md](docs/frontend-spec.md#5-the-derivation-format))
-- [ ] Double-entry ledger; balance derived, never stored
-- [ ] Virtual clock + deterministic scheduler ("advance one month" as a test
+- [x] Double-entry ledger; balance derived, never stored
+- [x] Virtual clock + deterministic scheduler ("advance one month" as a test
       primitive)
 
 **Property tests for this stage:**
 
-1. All ledger entries sum to zero after any random sequence of operations
-2. Proration credits never exceed what was actually paid for the period
-3. Recomputing a closed period produces a byte-identical invoice
+1. [x] All ledger entries sum to zero after any random sequence of operations —
+       run against PostgreSQL, since that is where the invariant is enforced
+2. [x] The prorated subscription fee never exceeds the full fee, wherever in the
+       cycle the plan changes
+3. [x] Recomputing a closed period produces a byte-identical invoice
+4. [x] A plan change always leaves a timeline that tiles — no gap to leave a
+       period unpriced, no overlap to price a transaction twice
+
+The original wording of (2) promised that *proration credits* never exceed what
+was paid. Credits require credit notes, which require the backdated-correction
+machinery, and that belongs to Stage 2 — see below. The invariant asserted here
+is the part that exists.
 
 **Done when:** a scripted scenario — create merchant, process transactions, change
 plan mid-cycle, advance one month — produces a correct invoice, and the ledger
@@ -83,8 +93,14 @@ balances.
       VAT ID
 - [ ] **Gapless invoice numbering** per legal entity, holding under concurrent
       writes and transaction rollbacks — a legal requirement in DE and IT
-- [ ] Bitemporal plan changes: effective date vs recorded date, backdated changes
-      producing credit notes
+- [ ] **Credit notes for backdated changes.** Moved here from Stage 1. The
+      timeline rewrite already works and is tested: moving an upgrade from
+      15 September back to the 5th changes the same invoice from 14071 to 11385.
+      What is missing is issuing the 2686 difference back to the merchant, which
+      needs a credit-note document, its own numbering, and a reversing ledger
+      transfer. That is a Stage 2 unit of work, not a loose end of Stage 1.
+- [ ] Property test that a proration credit never exceeds what was actually paid
+      for the period — belongs with the credit notes it describes
 - [ ] OpenAPI generated from the Fastify JSON Schemas
 - [ ] Errors as RFC 9457 Problem Details
 

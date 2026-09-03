@@ -1,5 +1,7 @@
 import { Temporal } from 'temporal-polyfill';
 
+import type { Clock } from './clock.js';
+
 /**
  * A billing period: half-open `[start, end)` in the merchant's own time zone.
  *
@@ -83,4 +85,24 @@ export function contains(period: BillingPeriod, date: Temporal.PlainDate): boole
 
 function fullMonthsBetween(anchor: Temporal.PlainDate, date: Temporal.PlainDate): number {
   return anchor.toPlainYearMonth().until(date.toPlainYearMonth(), { largestUnit: 'month' }).months;
+}
+
+/**
+ * Today's date in a given time zone, from an injected clock.
+ *
+ * A merchant in Italy and one in the UK are in different calendar days at the
+ * same instant, and the date on a tax invoice has legal meaning — so "today"
+ * is never a property of the server. See ADR-0002.
+ */
+export function todayIn(clock: Clock, timeZone: string): Temporal.PlainDate {
+  return clock.now().withTimeZone(timeZone).toPlainDate();
+}
+
+/** The billing period a subscription is currently in, in the merchant's zone. */
+export function currentPeriod(
+  anchor: Temporal.PlainDate,
+  clock: Clock,
+  timeZone: string,
+): BillingPeriod {
+  return periodContaining(anchor, todayIn(clock, timeZone));
 }
