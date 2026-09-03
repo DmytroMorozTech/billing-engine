@@ -1,7 +1,4 @@
 # Local development infrastructure.
-#
-# The psp service joins this file once that app exists — a compose file that
-# references a missing Dockerfile is worse than a short one.
 
 services:
   # Runs once and exits. Migrations deliberately do not happen on API startup:
@@ -41,6 +38,20 @@ services:
         condition: service_healthy
       migrate:
         condition: service_completed_successfully
+    restart: unless-stopped
+
+  # The payment provider we do not own, standing in for itself. Deliberately
+  # has no database and no volume: it keeps no state, so a restart cannot make
+  # a demo behave differently than it did a minute ago.
+  psp:
+    build:
+      context: ./apps/psp
+    image: billing-psp
+    container_name: billing-psp
+    environment:
+      PSP_PORT: 8082
+    ports:
+      - '${PSP_PORT:-8082}:8082'
     restart: unless-stopped
 
   # Publishes the outbox. Its own image rather than a second role for the API

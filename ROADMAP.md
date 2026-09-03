@@ -18,9 +18,9 @@ Small, but everything after it depends on these choices being right.
 
 - [x] npm workspaces skeleton per [ADR-0007](docs/adr/0007-repository-structure.md)
 - [x] `docker-compose.yml`: postgres and redis
-- [x] `docker-compose.yml`: api, plus a one-shot `migrate` service it waits on.
-      worker and psp join when those apps exist — a compose file referencing
-      missing Dockerfiles is worse than a short one
+- [x] `docker-compose.yml`: api, worker, psp, plus a one-shot `migrate` service
+      the other two wait on. Each arrived with its app rather than ahead of it —
+      a compose file referencing a missing Dockerfile is worse than a short one
 - [x] `packages/domain` with `Money` and `Clock`, no I/O
 - [x] ESLint rules that enforce the invariants rather than merely documenting them:
       no `Date` or `Temporal.Now` inside `packages/domain`; no `pg` / `ioredis` /
@@ -85,7 +85,11 @@ balances.
 
 - [ ] **Dunning:** payment fails → retries on a schedule → grace period →
       suspension. Driven by the PSP simulator's deterministic rejection rules.
-- [ ] PSP simulator in Go (`apps/psp`), ~200–300 lines
+- [x] PSP simulator in Go (`apps/psp`), ~250 lines. Stateless: the charge id is
+      derived from the idempotency key and the outcome from the amount and the
+      attempt number, so a restarted container answers a demo identically. `…01`
+      never has the money, `…02` clears on the third attempt, `…03` is an expired
+      card, `…99` takes five seconds — something for the stuck-jobs screen.
 - [x] Idempotency on every write endpoint, Postgres-backed
       ([ADR-0004](docs/adr/0004-idempotency-in-postgres.md)). The key row commits
       in the same transaction as the effect it protects, and the scope includes

@@ -42,6 +42,31 @@ jobs:
       - name: Test
         run: npm run test
 
+  # The simulator is Go and is not an npm workspace (ADR-0007), so it gets its
+  # own job rather than being smuggled into the backend one.
+  psp:
+    name: PSP
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: apps/psp
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5
+        with:
+          go-version-file: apps/psp/go.mod
+
+      - name: Formatting
+        # gofmt does not fail on its own; it just prints what it would change.
+        run: test -z "$(gofmt -l .)" || { gofmt -d .; exit 1; }
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Test
+        run: go test -race ./...
+
   integration:
     name: Integration
     runs-on: ubuntu-24.04
