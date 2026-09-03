@@ -32,3 +32,16 @@ export {
   periodAlreadyInvoiced,
   persistInvoiceDraft,
 } from './invoices.js';
+
+export {
+  type MerchantContext,
+  type NewMerchantInput,
+  type NewSubscriptionInput,
+  type SubscriptionContext,
+  InvalidTimeZoneError,
+  assertValidTimeZone,
+  createMerchant,
+  createSubscription,
+  liveSubscription,
+  merchantContext,
+} from './merchants.js';
