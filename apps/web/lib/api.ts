@@ -19,6 +19,81 @@ export interface Money {
   currency: string;
 }
 
+/**
+ * How an amount was reached, as it was recorded when it was computed.
+ *
+ * Never regenerated on read — an explanation that can drift away from the
+ * amount it explains is worse than none, because it still looks authoritative.
+ */
+export interface Derivation {
+  result: Money;
+  formula: string;
+  rounding?: {
+    mode: string;
+    /** The value before rounding, as a decimal string. Never a float. */
+    exact: string;
+    applied: number;
+  };
+  inputs: DerivationNode[];
+}
+
+export type DerivationNode =
+  | { kind: 'value'; label: string; value: Money | number | string }
+  | {
+      kind: 'event';
+      label: string;
+      eventId: string;
+      /** When it happened. */
+      occurredAt: string;
+      /** When we learned of it. The two differ, and the difference matters. */
+      recordedAt: string;
+    }
+  | { kind: 'computation'; label: string; derivation: Derivation };
+
+export interface InvoiceLine {
+  position: number;
+  kind: 'subscription' | 'commission' | 'proration_credit' | 'adjustment';
+  description: string;
+  amount: Money;
+  vatRateBps: number;
+  derivation: Derivation;
+}
+
+export interface PaymentAttempt {
+  attempt: number;
+  status: 'succeeded' | 'failed';
+  declineCode: string | null;
+  pspChargeId: string;
+  attemptedAt: string;
+}
+
+export interface CreditNoteSummary {
+  id: string;
+  number: string;
+  /** Negative: a credit note reduces what is owed. */
+  total: Money;
+  issuedOn: string;
+}
+
+export interface Invoice {
+  id: string;
+  number: string | null;
+  status: 'draft' | 'open' | 'paid' | 'uncollectible' | 'void';
+  periodStart: string;
+  periodEnd: string;
+  issuedOn: string | null;
+  dueOn: string | null;
+  vatTreatment: 'standard' | 'reverse_charge' | 'outside_scope';
+  subtotal: Money;
+  vat: Money;
+  total: Money;
+  /** The total less any credit notes issued against it. */
+  netTotal: Money;
+  lines: InvoiceLine[];
+  paymentAttempts: PaymentAttempt[];
+  creditNotes: CreditNoteSummary[];
+}
+
 export interface InvoiceSummary {
   id: string;
   number: string | null;
@@ -96,6 +171,10 @@ async function get<T>(path: string): Promise<T> {
 
 export function getMerchant(merchantId: string): Promise<MerchantDetail> {
   return get<MerchantDetail>(`/v1/merchants/${merchantId}`);
+}
+
+export function getInvoice(invoiceId: string): Promise<Invoice> {
+  return get<Invoice>(`/v1/invoices/${invoiceId}`);
 }
 
 export function listInvoices(

@@ -34,7 +34,7 @@ export default async function InvoicesPage() {
   ]);
 
   return (
-    <main style={{ maxWidth: '72rem', margin: '0 auto', padding: '2rem 1rem' }}>
+    <main className="page">
       <Headline as="h1" size="l">
         Invoices
       </Headline>
@@ -58,7 +58,13 @@ export default async function InvoicesPage() {
             { children: 'Total', align: 'right' },
           ]}
           rows={invoices.map((invoice) => [
-            invoice.number ?? '—',
+            {
+              children: (
+                <a href={`/app/invoices/${invoice.id}`}>
+                  {invoice.number ?? 'Draft'}
+                </a>
+              ),
+            },
             `${formatDate(invoice.periodStart)} – ${formatDate(invoice.periodEnd)}`,
             invoice.issuedOn ? formatDate(invoice.issuedOn) : '—',
             invoice.dueOn ? formatDate(invoice.dueOn) : '—',

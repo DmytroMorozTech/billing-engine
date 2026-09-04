@@ -1,0 +1,12 @@
+/* The page shell, shared by every screen in the merchant portal. Kept global
+   rather than duplicated per route: it is layout, not a component. */
+.page {
+  max-width: 72rem;
+  padding: var(--cui-spacings-giga) var(--cui-spacings-mega);
+  margin: 0 auto;
+}
+
+.page > a {
+  display: inline-block;
+  margin-bottom: var(--cui-spacings-mega);
+}

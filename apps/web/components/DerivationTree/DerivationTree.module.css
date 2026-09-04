@@ -1,0 +1,37 @@
+.tree {
+  padding-left: var(--cui-spacings-mega);
+  border-left: var(--cui-border-width-mega) solid var(--cui-border-subtle);
+}
+
+.formula {
+  font-family: var(--cui-font-stack-mono, monospace);
+}
+
+.inputs {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--cui-spacings-bit) var(--cui-spacings-mega);
+  margin-top: var(--cui-spacings-byte);
+}
+
+.inputs dd {
+  margin: 0;
+}
+
+/* A nested computation spans both columns: it is a whole sub-calculation, not
+   a label and a value. */
+.nested {
+  grid-column: 1 / -1;
+  margin-top: var(--cui-spacings-byte);
+}
+
+.nested summary {
+  display: flex;
+  gap: var(--cui-spacings-byte);
+  cursor: pointer;
+}
+
+.rounding {
+  display: block;
+  margin-top: var(--cui-spacings-byte);
+}
