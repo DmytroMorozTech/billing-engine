@@ -1,32 +1,38 @@
 import {
-  buildInvoice,
   currentPeriod,
   DeterministicScheduler,
   money,
   preparePlanChange,
   VirtualClock,
-  type ScheduledJob,
 } from '@billing/domain';
 import type { Kysely } from 'kysely';
 import type pg from 'pg';
 import { Temporal } from 'temporal-polyfill';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { createDatabase, createPool } from '../connection.js';
-import { migrate, resetSchema } from '../migrate.js';
-import type { Database } from '../schema.js';
-import { invoiceLines, persistInvoiceDraft } from './invoices.js';
+import type { Database } from '@billing/db';
 import {
+  applyPlanChange,
   balance,
+  createDatabase,
+  createMerchant,
+  createPool,
+  createSubscription,
+  currentRateIntervals,
   ensureMerchantAccounts,
-  invoicePostings,
+  ingestTransaction,
+  invoiceLines,
+  merchantContext,
   merchantWalletKey,
-  postTransfer,
+  migrate,
+  openInitialInterval,
+  planTerms,
+  resetSchema,
   systemTotal,
-} from './ledger.js';
-import { createMerchant, createSubscription, merchantContext } from './merchants.js';
-import { applyPlanChange, currentRateIntervals, openInitialInterval, planTerms } from './subscriptions.js';
-import { ingestTransaction, markInvoiced, uninvoicedInPeriod } from './transactions.js';
+} from '@billing/db';
+import { SequentialIdGenerator } from '@billing/platform';
+
+import { runBillingCycle } from './billing-run.js';
 
 const connectionString = process.env.DATABASE_URL;
 const describeIfDatabase = connectionString ? describe : describe.skip;
@@ -55,67 +61,39 @@ describeIfDatabase('Stage 1 acceptance scenario', () => {
   let db: Kysely<Database>;
   let clock: VirtualClock;
   let scheduler: DeterministicScheduler;
-  let counter = 0;
-  const nextId = () =>
-    `00000000-0000-7000-8000-${(counter += 1).toString(16).padStart(12, '0')}`;
+  let ids: SequentialIdGenerator;
+  const nextId = () => ids.next();
 
   const invoicesRaised: string[] = [];
 
-  /** What the worker will do for real, once apps/worker exists. */
-  async function runBilling(job: ScheduledJob): Promise<void> {
-    const merchant = await merchantContext(db, MERCHANT);
-    const period = currentPeriod(date('2026-09-01'), clock, merchant.billingTimeZone);
+  /**
+   * The job the scheduler fires: bill the period that has just closed.
+   *
+   * The billing itself is `runBillingCycle`, the same function the worker and
+   * the demo seed call. This test used to contain its own copy, which meant the
+   * code that turns a month into money was only exercised by the test that also
+   * defined it.
+   */
+  async function runBilling(): Promise<void> {
+    const period = currentPeriod(date('2026-09-01'), clock, TIME_ZONE);
 
-    // The run fires on the first day of the next period, so bill the one that
-    // has just closed.
-    const closed = {
-      start: period.start.subtract({ months: 1 }),
-      end: period.start,
-    };
+    // The run fires on the first day of the next period, so the period to bill
+    // is the one immediately before it.
+    const closed = { start: period.start.subtract({ months: 1 }), end: period.start };
 
-    const intervals = await currentRateIntervals(db, SUBSCRIPTION);
-    const transactions = await uninvoicedInPeriod(db, MERCHANT, closed);
-
-    const draft = buildInvoice({
-      period: closed,
-      currency: merchant.currency,
-      intervals,
-      transactions,
-      vat: { kind: 'standard', rateBps: merchant.vatRateBps },
-    });
-
-    const invoiceId = nextId();
-    const transferId = nextId();
-
-    await db.transaction().execute(async (tx) => {
-      await persistInvoiceDraft(tx, {
-        id: invoiceId,
-        merchantId: MERCHANT,
+    const result = await runBillingCycle(
+      { db, ids },
+      {
         subscriptionId: SUBSCRIPTION,
-        legalEntityId: merchant.legalEntityId,
-        draft,
-        lineIds: draft.lines.map(() => nextId()),
-      });
-      await markInvoiced(
-        tx,
-        transactions.map((t) => t.id),
-        invoiceId,
-      );
-      await postTransfer(tx, {
-        id: transferId,
-        kind: job.kind,
-        occurredAt: new Date(clock.now().epochMilliseconds),
-        reference: { type: 'invoice', id: invoiceId },
-        postings: invoicePostings({
-          merchantId: MERCHANT,
-          subtotal: draft.subtotal,
-          vat: draft.vat,
-          total: draft.total,
-        }),
-      });
-    });
+        period: closed,
+        issuedOn: closed.end,
+        dueOn: closed.end.add({ days: 14 }),
+      },
+    );
 
-    invoicesRaised.push(invoiceId);
+    if (result.invoiceId !== null && !result.alreadyBilled) {
+      invoicesRaised.push(result.invoiceId);
+    }
   }
 
   beforeAll(async () => {
@@ -124,8 +102,9 @@ describeIfDatabase('Stage 1 acceptance scenario', () => {
     await migrate(pool);
     db = createDatabase(pool);
 
+    ids = new SequentialIdGenerator();
     clock = VirtualClock.at(START);
-    scheduler = new DeterministicScheduler(clock, (job) => runBilling(job));
+    scheduler = new DeterministicScheduler(clock, () => runBilling());
   }, 60_000);
 
   afterAll(async () => {
