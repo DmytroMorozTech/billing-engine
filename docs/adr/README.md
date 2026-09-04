@@ -18,3 +18,4 @@ the old one and the old one is marked `Superseded by ADR-XXXX`.
 | [0008](0008-frontend-stack.md) | Circuit UI as the frontend foundation | Accepted |
 | [0009](0009-database-schema-and-constraints.md) | Invariants belong in the database | Accepted |
 | [0010](0010-lockfile-generation.md) | The lockfile is generated with `--package-lock-only` | Accepted |
+| [0011](0011-response-schemas-on-every-route.md) | Every route declares its responses | Accepted |

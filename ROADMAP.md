@@ -181,16 +181,28 @@ Half the effect lives here.
 - [ ] Three-minute video: create merchant → change plan mid-cycle → advance time →
       inspect invoice → "why this amount" → payment fails → dunning fires
 - [ ] Clean commit history, no commits made through the GitHub web UI
-- [ ] One deliberately found and fixed bug, written up with the test that catches
-      it
+- [x] One deliberately found and fixed bug, written up with the test that catches
+      it — [docs/found-bugs.md](docs/found-bugs.md)
 
-### Candidate for that write-up
+### The write-up
 
-Three real bugs were already found in the Circuit UI Next.js template while
-validating the stack — `npm run lint` and `npm run lint:css` both fail on a freshly
-scaffolded project, one of them due to a Windows quoting bug. Recorded in
-[ADR-0008](docs/adr/0008-frontend-stack.md). A domain bug found by the time machine
-would be stronger still; if one appears, it takes this slot instead.
+Six bugs, in [docs/found-bugs.md](docs/found-bugs.md), each with the test that
+catches it. The headline is the zero-amount ledger posting: a property test
+failed about half the time because its generator produced a zero-VAT invoice,
+which turned out to be not an unrealistic input but the reverse-charge case —
+so the fix was a design decision (do not build the line) rather than a relaxed
+constraint. Reasoning in
+[ADR-0003](docs/adr/0003-balance-derived-from-ledger.md).
+
+The pattern across them is the more interesting part: four of the six returned
+valid, successful, complete-looking output and were wrong only in their
+contents. They are caught by tests that assert on values rather than on
+structure — `toBeDefined()` would have passed against every one of them.
+
+The Circuit UI template bugs recorded in
+[ADR-0008](docs/adr/0008-frontend-stack.md) are still there and still real, but
+they are someone else's bugs found while validating a stack. The six here are
+this system's own.
 
 ---
 
