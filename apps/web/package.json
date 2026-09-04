@@ -38,7 +38,7 @@
     "@testing-library/user-event": "^14.6.1",
     "@types/jest": "^30.0.0",
     "@types/jest-axe": "^3.5.9",
-    "@types/node": "^25.9.1",
+    "@types/node": "^26.4.0",
     "@types/react": "^19.2.15",
     "@types/react-dom": "^19.2.3",
     "eslint-plugin-jest": "^29.16.0",
@@ -46,7 +46,7 @@
     "jest": "^30.3.0",
     "jest-axe": "^10.0.0",
     "jest-environment-jsdom": "^30.4.1",
-    "typescript": "^6.0.3",
+    "typescript": "^7.0.2",
     "typescript-plugin-css-modules": "^5.2.0"
   },
   "description": "Merchant portal and support console"
