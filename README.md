@@ -69,10 +69,11 @@ Each choice is argued in [docs/adr/](docs/adr/), including the ones that are
 deliberate omissions — most notably [why there is no Kafka](docs/adr/0005-outbox-with-pluggable-publisher.md)
 despite the transactional outbox pattern being used.
 
-The frontend is built on [Circuit UI](https://github.com/sumup-oss/circuit-ui),
-SumUp's open-source design system, starting from their official Next.js template
-and using their toolchain unchanged — including `jest-axe`, which makes an
-accessibility test part of the definition of done for every screen.
+The frontend is built on Circuit UI, an Apache-2.0 design system published as
+`@sumup-oss/circuit-ui`, starting from its Next.js template and keeping that
+toolchain unchanged — including `jest-axe`, which makes an accessibility test
+part of the definition of done for every screen. The reasoning is in
+[ADR-0008](docs/adr/0008-frontend-stack.md).
 
 ## Documentation
 

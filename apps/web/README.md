@@ -1,29 +1,50 @@
-<div align="center">
+# Billing engine — web
 
-# Welcome to SumUp Next.js
+The merchant portal. A Next.js App Router application that reads the billing
+API and renders what a merchant was charged, and why.
 
-This is a [Next.js](https://nextjs.org) app, preconfigured with SumUp's [Circuit UI](https://circuit.sumup.com) design system and SumUp's [Foundry](https://github.com/sumup-oss/foundry/) frontend toolkit.
+## Running it
 
-</div>
-
-## Getting started
-
-First, run the development server:
+The API and its database have to be up first:
 
 ```bash
-npm run dev
+docker compose up -d          # from the repository root
+npm run dev --workspace @billing/web
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Then <http://localhost:3000>. The API is expected at `http://localhost:8081`;
+override with `BILLING_API_URL`. There is no session yet, so the merchant is
+chosen with `DEMO_MERCHANT_ID`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Layout
 
-## Next steps
+```
+app/(merchant)/app/*   merchant-facing screens
+components/            presentational components, each with its own spec
+lib/api.ts             the only place this app talks to the billing API
+lib/money.ts           minor units and dates, formatted for reading only
+```
 
-The project is preconfigured with the SumUp frontend stack.
+Pages are Server Components and fetch with `no-store`: billing data moves
+underneath a page, and a cached one would show a state that has already gone.
 
-- Follow the [Next.js tutorial](https://nextjs.org/learn) or [read the docs](https://nextjs.org/docs) to learn about Next.js features and APIs.
-- Write tests with [Jest](https://jestjs.io/) and [Testing Library](https://testing-library.com/). Read about the [Testing Library Guiding Principles](https://testing-library.com/docs/guiding-principles).
-- Build pages using the SumUp design system, [Circuit UI](https://circuit.sumup.com).
-- Add styles using [CSS Modules](https://github.com/css-modules/css-modules).
-- Frontend tooling (linting, formatting, commit hooks) is configured with [Foundry](https://github.com/sumup-oss/foundry/), SumUp's frontend toolkit.
+## Checks
+
+```bash
+npm run lint            # Biome, then ESLint
+npm run lint:css        # Stylelint
+npm run test:ci         # Jest, including an accessibility check per component
+npm run build
+```
+
+Accessibility is part of the definition of done for a screen, not a later
+phase — every component spec runs `jest-axe`.
+
+## Toolchain
+
+This app keeps its own toolchain — Biome, Jest, Stylelint — separate from the
+backend's ESLint and Vitest, because it was scaffolded from the Circuit UI
+template and adopting that toolchain wholesale was a deliberate decision. The
+reasoning, and two Windows-only faults that had to be fixed before it worked on
+a fresh clone, are in
+[ADR-0008](../../docs/adr/0008-frontend-stack.md).

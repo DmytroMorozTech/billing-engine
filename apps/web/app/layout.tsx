@@ -6,19 +6,16 @@ import '@sumup-oss/circuit-ui/styles.css';
 
 import './globals.css';
 
-import { PreloadResources } from './preload-resources.js';
-
 export const metadata: Metadata = {
   title: {
-    template: '%s | SumUp',
-    default: 'SumUp',
+    template: '%s | Billing engine',
+    default: 'Billing engine',
   },
-  icons: {
-    icon: 'https://static.sumup.com/favicons/favicon-32x32.png',
-    shortcut: 'https://static.sumup.com/favicons/favicon.ico',
-    apple: 'https://static.sumup.com/favicons/apple-touch-icon.png',
-  },
-  manifest: 'https://static.sumup.com/favicons/site.webmanifest',
+  description:
+    'Subscriptions, usage-based commission and invoicing for a small-business payments platform.',
+  // A local file, not a remote one. The template pointed these at its
+  // vendor's CDN, which fetched third-party assets on every page load.
+  icons: { icon: '/icon.svg' },
 };
 
 export const viewport: Viewport = {
@@ -38,7 +35,6 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <PreloadResources />
       <body>{children}</body>
     </html>
   );

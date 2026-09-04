@@ -1,3 +1,17 @@
+/*
+ * The design tokens name a vendor's proprietary typeface first in every font
+ * stack. Nothing fetches it — the package ships only metric-matched local
+ * fallbacks — but the name would still travel into our own pages, so the stacks
+ * are replaced with a system one. Circuit UI's fallback faces are tuned to
+ * Arial metrics, which every stack below still reaches.
+ */
+:root {
+  --cui-font-stack-default:
+    system-ui, -apple-system, "Segoe UI", "Roboto", "Arial", sans-serif;
+  --cui-font-stack-display:
+    system-ui, -apple-system, "Segoe UI", "Roboto", "Arial", sans-serif;
+}
+
 /* The page shell, shared by every screen in the merchant portal. Kept global
    rather than duplicated per route: it is layout, not a component. */
 .page {
