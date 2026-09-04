@@ -125,8 +125,39 @@ export interface TransactionsTable {
 
 export interface InvoiceSequencesTable {
   legal_entity_id: string;
+  /** Invoices and credit notes are numbered in separate, each-gapless series. */
+  series: Generated<'invoice' | 'credit_note'>;
   year: number;
   next_value: Generated<number>;
+}
+
+export interface CreditNotesTable {
+  id: string;
+  merchant_id: string;
+  invoice_id: string;
+  legal_entity_id: string;
+  /** Never null: a credit note is computed and issued in one step. */
+  number: string;
+  currency: string;
+  /** Negative, always: a credit note reduces what is owed. */
+  subtotal_minor: MinorUnits;
+  vat_minor: MinorUnits;
+  total_minor: MinorUnits;
+  vat_treatment: 'standard' | 'reverse_charge' | 'outside_scope';
+  issued_on: IsoDate;
+  created_at: DefaultedTimestamp;
+}
+
+export interface CreditNoteLinesTable {
+  id: string;
+  credit_note_id: string;
+  position: number;
+  kind: 'proration_credit' | 'adjustment';
+  description: string;
+  amount_minor: MinorUnits;
+  currency: string;
+  vat_rate_bps: number;
+  derivation: ColumnType<unknown, string, string>;
 }
 
 export interface InvoicesTable {
@@ -238,6 +269,8 @@ export interface Database {
   invoice_sequences: InvoiceSequencesTable;
   invoices: InvoicesTable;
   invoice_lines: InvoiceLinesTable;
+  credit_notes: CreditNotesTable;
+  credit_note_lines: CreditNoteLinesTable;
   ledger_accounts: LedgerAccountsTable;
   ledger_transfers: LedgerTransfersTable;
   ledger_entries: LedgerEntriesTable;

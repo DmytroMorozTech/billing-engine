@@ -75,6 +75,14 @@ export {
 } from './rating/rate-interval.js';
 
 export {
+  type Correction,
+  type CorrectionInput,
+  type CreditNoteDraft,
+  type IssuedTotals,
+  prepareCorrection,
+} from './rating/correction.js';
+
+export {
   type BuildInvoiceInput,
   type InvoiceDraft,
   type InvoiceLineDraft,

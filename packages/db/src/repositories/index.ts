@@ -58,6 +58,15 @@ export {
 } from './outbox.js';
 
 export {
+  type IssueCreditNoteInput,
+  type StoredCreditNote,
+  creditNotesFor,
+  issueCreditNote,
+  netCharged,
+} from './credit-notes.js';
+
+export {
+  type DocumentSeries,
   type FinaliseInvoiceInput,
   type PersistInvoiceInput,
   type StoredInvoiceLine,

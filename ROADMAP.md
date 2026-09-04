@@ -115,14 +115,17 @@ balances.
       writes and transaction rollbacks — a legal requirement in DE and IT.
       `finaliseInvoice` takes a `Transaction`, so a number cannot be issued
       outside the transaction that keeps it.
-- [ ] **Credit notes for backdated changes.** Moved here from Stage 1. The
-      timeline rewrite already works and is tested: moving an upgrade from
-      15 September back to the 5th changes the same invoice from 14071 to 11385.
-      What is missing is issuing the 2686 difference back to the merchant, which
-      needs a credit-note document, its own numbering, and a reversing ledger
-      transfer. That is a Stage 2 unit of work, not a loose end of Stage 1.
-- [ ] Property test that a proration credit never exceeds what was actually paid
-      for the period — belongs with the credit notes it describes
+- [x] **Credit notes for backdated changes.** Moved here from Stage 1. Moving
+      an upgrade from 15 September back to the 5th changes the same invoice from
+      14071 to 11385, and the 2686 difference now leaves as `DE-CN-2026-000001`
+      with its own gapless series and a reversing ledger transfer. Correcting a
+      period twice measures against what is still charged, so the same money is
+      never returned twice. A change that makes a period *dearer* is refused
+      rather than issued as a negative credit note: that is a supplementary
+      invoice, a different document in law.
+- [x] Property test that a proration credit never exceeds what was actually paid
+      for the period — generated over where the upgrade fell and where it is
+      moved to, since that pair is what a support engineer actually edits
 - [ ] OpenAPI generated from the Fastify JSON Schemas
 - [x] Errors as RFC 9457 Problem Details, including the failures Fastify raises
       itself — a client never has to tell our error shape from the framework's

@@ -139,7 +139,12 @@ export async function finaliseInvoice(
     return invoice.number;
   }
 
-  const number = await claimNextNumber(tx, invoice.legal_entity_id, input.issuedOn.year);
+  const number = await claimNextNumber(
+    tx,
+    invoice.legal_entity_id,
+    'invoice',
+    input.issuedOn.year,
+  );
 
   await tx
     .updateTable('invoices')
@@ -180,21 +185,25 @@ export async function finaliseInvoice(
  * rather than an upsert with a value: two transactions arriving together must
  * not have one of them silently reset the counter.
  */
-async function claimNextNumber(
+export type DocumentSeries = 'invoice' | 'credit_note';
+
+export async function claimNextNumber(
   tx: Transaction<Database>,
   legalEntityId: string,
+  series: DocumentSeries,
   year: number,
 ): Promise<string> {
   await tx
     .insertInto('invoice_sequences')
-    .values({ legal_entity_id: legalEntityId, year, next_value: 1 })
-    .onConflict((oc) => oc.columns(['legal_entity_id', 'year']).doNothing())
+    .values({ legal_entity_id: legalEntityId, series, year, next_value: 1 })
+    .onConflict((oc) => oc.columns(['legal_entity_id', 'series', 'year']).doNothing())
     .execute();
 
   const sequence = await tx
     .selectFrom('invoice_sequences')
     .select('next_value')
     .where('legal_entity_id', '=', legalEntityId)
+    .where('series', '=', series)
     .where('year', '=', year)
     // Everything after this point is serialised against other finalisations
     // for the same entity and year. That is the cost of gaplessness, and it is
@@ -206,6 +215,7 @@ async function claimNextNumber(
     .updateTable('invoice_sequences')
     .set({ next_value: sequence.next_value + 1 })
     .where('legal_entity_id', '=', legalEntityId)
+    .where('series', '=', series)
     .where('year', '=', year)
     .execute();
 
@@ -215,12 +225,18 @@ async function claimNextNumber(
     .where('id', '=', legalEntityId)
     .executeTakeFirstOrThrow();
 
-  return format(entity.number_prefix, year, sequence.next_value);
+  return format(entity.number_prefix, series, year, sequence.next_value);
 }
 
-/** `DE-2026-000001`. Padded so numbers sort lexicographically within a year. */
-function format(prefix: string, year: number, value: number): string {
-  return `${prefix}-${year}-${value.toString().padStart(6, '0')}`;
+/**
+ * `DE-2026-000001` for an invoice, `DE-CN-2026-000001` for a credit note.
+ *
+ * Padded so numbers sort lexicographically within a year, and marked by kind so
+ * that a number tells a reader which document they are holding without a lookup.
+ */
+function format(prefix: string, series: DocumentSeries, year: number, value: number): string {
+  const kind = series === 'credit_note' ? 'CN-' : '';
+  return `${prefix}-${kind}${year}-${value.toString().padStart(6, '0')}`;
 }
 
 export async function invoiceLines(db: Db, invoiceId: string): Promise<StoredInvoiceLine[]> {
