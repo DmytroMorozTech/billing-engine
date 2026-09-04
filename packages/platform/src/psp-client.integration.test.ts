@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 
 import { HttpPspClient, PspUnavailableError } from './psp-client.js';
 
@@ -13,7 +13,14 @@ const describeIfPsp = baseUrl ? describe : describe.skip;
  * stub agrees with whatever this file assumes about all three.
  */
 describeIfPsp('HttpPspClient', () => {
-  const client = new HttpPspClient({ baseUrl: baseUrl as string });
+  // Built in beforeAll, not in the describe body: a skipped suite still has its
+  // body evaluated so the tests can be collected, and constructing a client
+  // from an absent PSP_URL there fails the whole file instead of skipping it.
+  let client: HttpPspClient;
+
+  beforeAll(() => {
+    client = new HttpPspClient({ baseUrl: baseUrl as string });
+  });
 
   const charge = (amountMinor: number, attempt = 1) =>
     client.charge({
