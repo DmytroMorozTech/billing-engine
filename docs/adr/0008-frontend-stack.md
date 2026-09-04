@@ -34,6 +34,13 @@ Verified by scaffolding the template and running it (2026-09-02, Node 24.18.0):
 `npm run build`, `npx jest --ci`, `npm run lint` and `npm run lint:css` all pass
 after the fixes recorded below.
 
+> **Amended 2026-09-04.** That sentence was true of the machine it was written
+> on and not of a fresh clone. Two further Windows-only faults were found when
+> the first real screen was built; both are recorded under "Windows" below.
+> Neither is caused by the toolchain being separate from the backend's — one is
+> an npm bug and the other a line-ending setting — so the decision stands, but
+> "verified working" was too strong a claim to make from a single machine.
+
 Consequences worth naming explicitly:
 
 - Circuit UI dropped Emotion for CSS Modules in v7, so React Server Components
@@ -76,6 +83,59 @@ linter. Running `npm run test:ci` followed by `npm run lint` on an untouched
 scaffold fails — which is the ordering any CI pipeline uses.
 `apps/web/.gitignore` is corrected to match the directories Jest actually
 produces.
+
+### Windows
+
+Two faults that appear only on Windows, found on 2026-09-04 when the first
+screen was built against the API. Both are local-development faults: CI runs on
+Linux and was green throughout.
+
+**Biome rejects CRLF, and the repository checked files out as CRLF.**
+`.gitattributes` said `* text=auto`, which means LF in the repository and
+native endings in the working tree — so on Windows every source file arrived
+with CRLF and `biome check` failed on it. Measured rather than assumed: deleting
+`apps/web/app/page.tsx` and checking it out again produced 57 CRLF pairs and a
+formatter error. A fresh clone therefore could not pass
+`npm run lint --workspace @billing/web`.
+
+Fixed by `* text=auto eol=lf`, which is what the file already did for `*.sh`,
+`*.yml` and `Dockerfile` under the heading "files that must keep LF even on
+Windows checkouts". Biome is one more such case. Thirteen tracked files were
+normalised on disk; none changed content, because the repository already stored
+them as LF.
+
+**`npm ci` does not install an optional peer dependency's native binding.**
+Foundry's ESLint config imports `eslint-import-resolver-oxc` at module load,
+which loads `oxc-resolver`, which needs a platform binary. All nineteen
+platform bindings are in the lockfile and none were installed, so importing the
+config threw `Cannot find native binding` before any rule ran. The distinguishing
+feature is that npm had resolved them as `optional` **and** `peer`; the win32
+binaries for `@next/swc`, `@biomejs/cli` and `lightningcss` all installed
+normally.
+
+npm's own advice — delete `package-lock.json` and `node_modules`, run
+`npm i` — is precisely what [ADR-0010](0010-lockfile-generation.md) forbids, and
+is what produced a non-portable lockfile twice. It was not followed.
+
+Fixed by declaring the binding directly in `apps/web/package.json`:
+
+```jsonc
+"optionalDependencies": {
+  "@oxc-resolver/binding-win32-x64-msvc": "11.24.2"
+}
+```
+
+A plain optional dependency is installed normally — the bug affects the optional
+*peer* case — and the package declares `"os": ["win32"]`, so npm skips it on
+Linux and macOS and CI is unaffected. The lockfile entry loses its `peer` flag
+and keeps `os: ["win32"]`, which is the whole fix. It is a workaround for
+[npm/cli#4828](https://github.com/npm/cli/issues/4828) and should be removed if
+npm or Foundry resolves it upstream.
+
+A `postinstall` script was considered and rejected: this project pins workflow
+actions by SHA and generates its lockfile with `--ignore-scripts`, and a script
+that reaches the network during install runs against that. A documented manual
+step was rejected because it has to be repeated after every `npm ci`.
 
 ### Supply-chain verification
 

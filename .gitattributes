@@ -1,5 +1,9 @@
-# Normalise line endings: LF in the repository, native in working directories.
-* text=auto
+# Normalise line endings: LF in the repository, and LF in working directories
+# too. `text=auto` alone checks files out as CRLF on Windows, and Biome — which
+# lints apps/web — rejects CRLF outright, so a fresh clone could not pass
+# `npm run lint --workspace @billing/web`. Measured, not assumed: a freshly
+# checked-out page.tsx came back with 57 CRLF pairs and failed the formatter.
+* text=auto eol=lf
 
 # Files that must keep LF even on Windows checkouts, or they break at runtime.
 *.sh        text eol=lf

@@ -25,6 +25,9 @@
     "react-dom": "^19.2.6",
     "temporal-polyfill": "^1.0.4"
   },
+  "optionalDependencies": {
+    "@oxc-resolver/binding-win32-x64-msvc": "11.24.2"
+  },
   "devDependencies": {
     "@next/eslint-plugin-next": "^16.2.11",
     "@sumup-oss/eslint-plugin-circuit-ui": "^7.1.0",
