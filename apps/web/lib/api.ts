@@ -25,6 +25,32 @@ export interface Money {
  * Never regenerated on read — an explanation that can drift away from the
  * amount it explains is worse than none, because it still looks authoritative.
  */
+export interface RateInterval {
+  id: string;
+  planId: string;
+  /** Local dates in the merchant's billing time zone. Half-open. */
+  effectiveFrom: string;
+  /** Null while the interval is still open-ended. */
+  effectiveTo: string | null;
+  monthlyFee: Money;
+  /** Basis points per channel. 169 is 1.69%. */
+  rates: { in_person: number; online: number; moto: number };
+}
+
+export interface Subscription {
+  id: string;
+  /** The day of the month every period starts on. Fixed at signup. */
+  anchorDate: string;
+  status: 'active' | 'past_due' | 'suspended' | 'cancelled';
+  currentPeriod: { start: string; end: string };
+  /**
+   * The rate timeline as we currently believe it, oldest first. More than one
+   * entry means the rate changed mid-life, and volume keeps the rate that was
+   * in force when it was processed (ADR-0006).
+   */
+  intervals: RateInterval[];
+}
+
 export interface Derivation {
   result: Money;
   formula: string;
@@ -171,6 +197,10 @@ async function get<T>(path: string): Promise<T> {
 
 export function getMerchant(merchantId: string): Promise<MerchantDetail> {
   return get<MerchantDetail>(`/v1/merchants/${merchantId}`);
+}
+
+export function getSubscription(merchantId: string): Promise<Subscription> {
+  return get<Subscription>(`/v1/merchants/${merchantId}/subscription`);
 }
 
 export function getInvoice(invoiceId: string): Promise<Invoice> {

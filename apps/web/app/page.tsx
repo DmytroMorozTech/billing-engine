@@ -29,6 +29,15 @@ export default function Page() {
             What a merchant was billed, and why each line comes to what it does.
           </Body>
         </div>
+        <div className={styles.card}>
+          <Headline as="h2" size="s">
+            <a href="/app/subscription">Subscription</a>
+          </Headline>
+          <Body size="s" color="subtle">
+            The plan in force, the anchor date that fixes the billing period,
+            and every rate that has applied.
+          </Body>
+        </div>
       </nav>
     </main>
   );

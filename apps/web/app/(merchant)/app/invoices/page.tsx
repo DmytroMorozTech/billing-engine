@@ -35,6 +35,7 @@ export default async function InvoicesPage() {
 
   return (
     <main className="page">
+      <a href="/app/subscription">Subscription →</a>
       <Headline as="h1" size="l">
         Invoices
       </Headline>

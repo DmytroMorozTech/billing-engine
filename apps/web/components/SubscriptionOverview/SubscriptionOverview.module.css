@@ -1,0 +1,24 @@
+.header {
+  margin-bottom: var(--cui-spacings-giga);
+}
+
+.section {
+  margin-top: var(--cui-spacings-giga);
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--cui-spacings-byte) var(--cui-spacings-giga);
+  max-width: 44rem;
+  margin-top: var(--cui-spacings-byte);
+}
+
+.facts dd {
+  margin: 0;
+}
+
+.note {
+  max-width: 44rem;
+  margin: var(--cui-spacings-byte) 0 var(--cui-spacings-mega);
+}
