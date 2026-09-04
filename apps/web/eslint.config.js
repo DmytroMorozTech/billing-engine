@@ -27,6 +27,14 @@ export default defineConfig([
   },
   configs.browser,
   {
+    // App Router code is a Server Component unless it says otherwise, and
+    // `configs.browser` otherwise flags `fetch` and `Promise.all` as
+    // unsupported in Opera Mini — a browser this code never reaches. A file
+    // that gains `'use client'` has to come back off this list.
+    files: ['lib/**/*.ts', 'app/**/page.tsx', 'app/**/layout.tsx'],
+    rules: { 'compat/compat': 'off' },
+  },
+  {
     extends: [
       jest.configs['flat/recommended'],
       testingLibrary.configs['flat/react'],
