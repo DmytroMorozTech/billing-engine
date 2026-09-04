@@ -137,6 +137,13 @@ row lock makes it fail, so it is testing the lock rather than the happy path.
 **Done when:** the system is deployed live with seeded demo data and the full
 dunning sequence can be watched end to end.
 
+The seed exists: `apps/worker` fills an empty database with six merchants —
+the worked example, reverse charge, an out-of-scope supply, one merchant
+suspended after four failed attempts, one recovered on the third, and one
+corrected by a credit note. It builds them by running the system rather than
+by writing rows, so it cannot produce a state the real path could not reach.
+Deployment is the remaining half, and by decision it stays last (Stage 4).
+
 ---
 
 ## Stage 3 — The showcase

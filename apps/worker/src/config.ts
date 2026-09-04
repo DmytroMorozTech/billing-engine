@@ -39,6 +39,25 @@ export function loadConfig(env: NodeJS.ProcessEnv): WorkerConfig {
   };
 }
 
+/**
+ * What the demo seed needs, which is less than the worker does.
+ *
+ * It publishes nothing and consumes nothing, so it has no business demanding a
+ * queue to start. Asking for configuration a process does not use is how an
+ * unrelated outage becomes "the seed is broken".
+ */
+export interface SeedConfig {
+  databaseUrl: string;
+  pspUrl: string;
+}
+
+export function loadSeedConfig(env: NodeJS.ProcessEnv): SeedConfig {
+  return {
+    databaseUrl: required(env.DATABASE_URL, 'DATABASE_URL', 'there is nothing to seed without it'),
+    pspUrl: required(env.PSP_URL, 'PSP_URL', 'the demo collects payments as it seeds'),
+  };
+}
+
 function required(value: string | undefined, name: string, why: string): string {
   if (!value) {
     throw new ConfigError(`${name} is not set. The worker cannot start: ${why}.`);

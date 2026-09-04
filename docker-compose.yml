@@ -54,6 +54,25 @@ services:
       - '${PSP_PORT:-8082}:8082'
     restart: unless-stopped
 
+  # Fills an empty database with the demo, then exits. Runs on every `up` and
+  # does nothing when the database already has merchants, so it is safe to
+  # leave here: the alternative is a step people forget before a demo.
+  seed:
+    build:
+      context: .
+      dockerfile: apps/worker/Dockerfile
+    image: billing-worker
+    command: ['node', 'apps/worker/dist/seed-main.js']
+    environment:
+      DATABASE_URL: postgres://billing:billing@postgres:5432/billing
+      PSP_URL: http://psp:8082
+    depends_on:
+      psp:
+        condition: service_started
+      migrate:
+        condition: service_completed_successfully
+    restart: 'no'
+
   # Publishes the outbox. Its own image rather than a second role for the API
   # image: the two scale for different reasons and fail in different ways.
   worker:

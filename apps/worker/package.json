@@ -7,7 +7,8 @@
   "main": "./dist/main.js",
   "scripts": {
     "build": "tsc -b",
-    "start": "node dist/main.js"
+    "start": "node dist/main.js",
+    "seed": "node dist/seed-main.js"
   },
   "dependencies": {
     "@billing/db": "*",
