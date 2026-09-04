@@ -126,7 +126,12 @@ balances.
 - [x] Property test that a proration credit never exceeds what was actually paid
       for the period — generated over where the upgrade fell and where it is
       moved to, since that pair is what a support engineer actually edits
-- [ ] OpenAPI generated from the Fastify JSON Schemas
+- [x] OpenAPI generated from the Fastify JSON Schemas, at `GET /openapi.json`
+      with Swagger UI at `/docs`. Generated from the route schemas themselves,
+      so the document cannot drift from the implementation - which meant giving
+      every route a *response* schema first, and those turned out to be worth
+      having on their own: Fastify serialises by schema, so a column added to a
+      select cannot leak into a payload.
 - [x] Errors as RFC 9457 Problem Details, including the failures Fastify raises
       itself — a client never has to tell our error shape from the framework's
 

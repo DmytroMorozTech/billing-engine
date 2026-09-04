@@ -21,7 +21,7 @@ const config = loadConfig(process.env);
 const pool = createPool({ connectionString: config.databaseUrl });
 const db = createDatabase(pool);
 
-const app = buildServer({
+const app = await buildServer({
   db,
   // UTC, never the host's zone. Every merchant-facing calculation takes the
   // merchant's zone explicitly — ADR-0002.

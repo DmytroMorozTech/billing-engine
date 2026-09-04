@@ -38,6 +38,8 @@ import {
   todayIn,
 } from '@billing/domain';
 import type { IdGenerator } from '@billing/platform';
+import swagger from '@fastify/swagger';
+import swaggerUi from '@fastify/swagger-ui';
 import Fastify, {
   type FastifyError,
   type FastifyInstance,
@@ -187,7 +189,16 @@ async function subscriptionSummary(
   };
 }
 
-export function buildServer(deps: ApiDependencies): FastifyInstance {
+/**
+ * Builds the server.
+ *
+ * Async because the OpenAPI plugins have to finish loading before the first
+ * route is declared — they collect routes through an `onRoute` hook, and a hook
+ * that has not been installed yet sees nothing. Registering them without
+ * awaiting produces a document with an empty `paths`, which is worse than no
+ * document because it looks like it worked.
+ */
+export async function buildServer(deps: ApiDependencies): Promise<FastifyInstance> {
   const app = Fastify({
     logger: deps.logger ?? false,
     genReqId: () => deps.ids.next(),
@@ -196,6 +207,56 @@ export function buildServer(deps: ApiDependencies): FastifyInstance {
   for (const schema of sharedSchemas) {
     app.addSchema(schema);
   }
+
+  // Read from the route schemas rather than written alongside them. A document
+  // maintained by hand describes the API someone remembered building, and the
+  // gap opens on the first change nobody thought to write down.
+  //
+  // Registered synchronously, so `buildServer` stays a plain function and every
+  // caller keeps working without awaiting. Fastify queues the plugin and
+  // `app.ready()` resolves it, which the tests and `main.ts` already await.
+  await app.register(swagger, {
+    openapi: {
+      openapi: '3.1.0',
+      info: {
+        title: 'Billing engine',
+        version: '1.0.0',
+        description:
+          'Subscriptions, usage-based commission and invoicing for a small-business ' +
+          'payments platform.\n\n' +
+          'Money is always an integer in the currency minor unit: 1999 is EUR 19.99. ' +
+          'There are no floats anywhere in this API, on purpose (ADR-0001).\n\n' +
+          'Every write endpoint requires an `Idempotency-Key` header. A retry with ' +
+          'the same key returns the original response and does not repeat the work; ' +
+          'reusing a key for a different body is a 422 (ADR-0004).\n\n' +
+          'Failures are RFC 9457 problem documents, including the ones Fastify ' +
+          'raises itself. Branch on `type`, which is stable; `detail` is prose for ' +
+          'a human and may be reworded.',
+      },
+      servers: [{ url: '/', description: 'This server' }],
+      tags: [
+        { name: 'merchants', description: 'Onboarding, market and VAT treatment' },
+        { name: 'subscriptions', description: 'Plans, rate timeline and proration' },
+        { name: 'invoices', description: 'Issued documents, dunning and corrections' },
+        { name: 'transactions', description: 'Processed volume' },
+        { name: 'wallet', description: 'Balance, derived from the ledger' },
+      ],
+    },
+  });
+
+  await app.register(swaggerUi, {
+    routePrefix: '/docs',
+    // Assets are served from the package, not a CDN, so the documentation works
+    // offline and inside docker-compose with no network.
+    uiConfig: { docExpansion: 'list', deepLinking: true },
+  });
+
+  // The plugin builds the document but serves it only under the UI's own
+  // prefix. A generator or a client fetching the spec should not have to know
+  // where the human-readable page happens to live, so it gets a stable path of
+  // its own. Hidden from the document it returns: it is not part of the API
+  // being described.
+  app.get('/openapi.json', { schema: { hide: true } }, async () => app.swagger());
 
   /**
    * Every failure leaves as RFC 9457, including the ones Fastify raises itself.
@@ -243,7 +304,7 @@ export function buildServer(deps: ApiDependencies): FastifyInstance {
 
   // Touches the database on purpose: a process that is up but cannot reach
   // PostgreSQL is not healthy, and saying otherwise wastes an on-call hour.
-  app.get('/health', async () => {
+  app.get('/health', { schema: { hide: true } }, async () => {
     await deps.db.selectFrom('currencies').select('code').limit(1).execute();
     return { status: 'ok' };
   });
@@ -252,6 +313,8 @@ export function buildServer(deps: ApiDependencies): FastifyInstance {
     '/v1/merchants',
     {
       schema: {
+        tags: ['merchants'],
+        summary: 'Onboard a merchant on a plan',
         body: { $ref: 'CreateMerchantBody#' },
         response: { 201: { $ref: 'Merchant#' }, '4xx': { $ref: 'Problem#' } },
       },
@@ -323,6 +386,8 @@ export function buildServer(deps: ApiDependencies): FastifyInstance {
     '/v1/merchants/:merchantId/transactions',
     {
       schema: {
+        tags: ['transactions'],
+        summary: 'Record processed volume',
         params: { $ref: 'MerchantParams#' },
         body: { $ref: 'IngestTransactionBody#' },
         response: { 201: { $ref: 'Transaction#' }, '4xx': { $ref: 'Problem#' } },
@@ -384,6 +449,8 @@ export function buildServer(deps: ApiDependencies): FastifyInstance {
     '/v1/merchants/:merchantId',
     {
       schema: {
+        tags: ['merchants'],
+        summary: 'Market, VAT treatment and subscription state',
         params: { $ref: 'MerchantParams#' },
         response: { 200: { $ref: 'MerchantDetail#' }, '4xx': { $ref: 'Problem#' } },
       },
@@ -427,6 +494,8 @@ export function buildServer(deps: ApiDependencies): FastifyInstance {
     '/v1/merchants/:merchantId/invoices',
     {
       schema: {
+        tags: ['invoices'],
+        summary: 'Invoices of a merchant, most recent period first',
         params: { $ref: 'MerchantParams#' },
         response: { 200: { $ref: 'InvoiceList#' }, '4xx': { $ref: 'Problem#' } },
       },
@@ -454,6 +523,8 @@ export function buildServer(deps: ApiDependencies): FastifyInstance {
     '/v1/merchants/:merchantId/subscription',
     {
       schema: {
+        tags: ['subscriptions'],
+        summary: 'Anchor date, current period and rate timeline',
         params: { $ref: 'MerchantParams#' },
         response: { 200: { $ref: 'Subscription#' }, '4xx': { $ref: 'Problem#' } },
       },
@@ -498,6 +569,8 @@ export function buildServer(deps: ApiDependencies): FastifyInstance {
     '/v1/merchants/:merchantId/subscription/plan-changes',
     {
       schema: {
+        tags: ['subscriptions'],
+        summary: 'Change plan, prospectively or backdated',
         params: { $ref: 'MerchantParams#' },
         body: { $ref: 'ChangePlanBody#' },
         response: { 200: { $ref: 'PlanChange#' }, '4xx': { $ref: 'Problem#' } },
@@ -574,6 +647,11 @@ export function buildServer(deps: ApiDependencies): FastifyInstance {
     '/v1/merchants/:merchantId/subscription/plan-changes/preview',
     {
       schema: {
+        tags: ['subscriptions'],
+        summary: 'Price a plan change without making it',
+        description:
+          'Writes nothing, and needs no Idempotency-Key. Returns the current period ' +
+          'priced both ways so the difference is visible before committing.',
         params: { $ref: 'MerchantParams#' },
         body: { $ref: 'ChangePlanBody#' },
         response: { 200: { $ref: 'PlanChangePreview#' }, '4xx': { $ref: 'Problem#' } },
@@ -649,6 +727,8 @@ export function buildServer(deps: ApiDependencies): FastifyInstance {
     '/v1/invoices/:invoiceId',
     {
       schema: {
+        tags: ['invoices'],
+        summary: 'One invoice, with its derivations, dunning history and credit notes',
         params: { $ref: 'InvoiceParams#' },
         response: { 200: { $ref: 'Invoice#' }, '4xx': { $ref: 'Problem#' } },
       },
@@ -732,6 +812,8 @@ export function buildServer(deps: ApiDependencies): FastifyInstance {
     '/v1/merchants/:merchantId/wallet',
     {
       schema: {
+        tags: ['wallet'],
+        summary: 'Balance, derived from the ledger rather than stored',
         params: { $ref: 'MerchantParams#' },
         response: { 200: { $ref: 'Wallet#' }, '4xx': { $ref: 'Problem#' } },
       },

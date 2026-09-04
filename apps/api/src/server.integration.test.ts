@@ -121,7 +121,7 @@ describeIfDatabase('API server', () => {
     db = createDatabase(pool);
     clock = VirtualClock.at(START);
 
-    app = buildServer({ db, clock, ids: new SequentialIdGenerator() });
+    app = await buildServer({ db, clock, ids: new SequentialIdGenerator() });
     await app.ready();
   }, 60_000);
 
@@ -685,4 +685,86 @@ describeIfDatabase('API server', () => {
     });
   });
 
+  /**
+   * The document is generated from the route schemas themselves, so it cannot
+   * describe an endpoint the server does not serve, or a shape the serialiser
+   * does not produce. These tests guard that property rather than the wording.
+   */
+  describe('GET /openapi.json', () => {
+    interface Operation {
+      responses?: Record<string, { content?: Record<string, { schema?: unknown }> }>;
+      parameters?: { name: string; in: string; required?: boolean }[];
+    }
+    interface Document {
+      openapi: string;
+      paths: Record<string, Record<string, Operation>>;
+    }
+
+    async function document(): Promise<Document> {
+      const response = await app.inject({ method: 'GET', url: '/openapi.json' });
+      expect(response.statusCode, response.body).toBe(200);
+      return response.json<Document>();
+    }
+
+    it('documents every versioned route', async () => {
+      const { paths } = await document();
+
+      expect(Object.keys(paths).sort()).toEqual([
+        '/v1/invoices/{invoiceId}',
+        '/v1/merchants',
+        '/v1/merchants/{merchantId}',
+        '/v1/merchants/{merchantId}/invoices',
+        '/v1/merchants/{merchantId}/subscription',
+        '/v1/merchants/{merchantId}/subscription/plan-changes',
+        '/v1/merchants/{merchantId}/subscription/plan-changes/preview',
+        '/v1/merchants/{merchantId}/transactions',
+        '/v1/merchants/{merchantId}/wallet',
+      ]);
+    });
+
+    it('states what every operation answers with, not only what it accepts', async () => {
+      const { paths } = await document();
+
+      const silent = Object.entries(paths).flatMap(([path, operations]) =>
+        Object.entries(operations)
+          .filter(([, operation]) => {
+            const success = Object.entries(operation.responses ?? {}).find(([status]) =>
+              status.startsWith('2'),
+            );
+            return success?.[1]?.content?.['application/json']?.schema === undefined;
+          })
+          .map(([method]) => `${method.toUpperCase()} ${path}`),
+      );
+
+      // The whole reason the response schemas were added. A document that lists
+      // endpoints without saying what comes back describes a shape the client
+      // still has to guess at.
+      expect(silent).toEqual([]);
+    });
+
+    it('describes failures as problem details', async () => {
+      const { paths } = await document();
+      const failure = Object.entries(
+        paths['/v1/merchants/{merchantId}']?.get?.responses ?? {},
+      ).find(([status]) => status.startsWith('4'));
+
+      expect(failure?.[1]?.content?.['application/json']?.schema).toBeDefined();
+    });
+
+    it('carries the path parameters through from the params schema', async () => {
+      const { paths } = await document();
+      const parameters = paths['/v1/invoices/{invoiceId}']?.get?.parameters ?? [];
+
+      expect(parameters).toContainEqual(
+        expect.objectContaining({ name: 'invoiceId', in: 'path', required: true }),
+      );
+    });
+
+    it('serves a page a person can read it in', async () => {
+      const response = await app.inject({ method: 'GET', url: '/docs/' });
+
+      expect(response.statusCode, response.body).toBe(200);
+      expect(response.headers['content-type']).toContain('text/html');
+    });
+  });
 });

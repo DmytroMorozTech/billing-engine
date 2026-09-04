@@ -13,6 +13,8 @@
     "@billing/db": "*",
     "@billing/domain": "*",
     "@billing/platform": "*",
+    "@fastify/swagger": "^9.5.2",
+    "@fastify/swagger-ui": "^5.2.3",
     "fastify": "^5.12.1",
     "temporal-polyfill": "^1.0.4"
   }
