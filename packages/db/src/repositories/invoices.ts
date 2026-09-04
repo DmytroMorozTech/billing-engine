@@ -1,8 +1,8 @@
-import type { Derivation, InvoiceDraft } from '@billing/domain';
+import type { Derivation, InvoiceDraft, Money } from '@billing/domain';
 import type { Transaction } from 'kysely';
 import type { Temporal } from 'temporal-polyfill';
 
-import { fromPlainDate } from '../mappers.js';
+import { fromPlainDate, toMoney } from '../mappers.js';
 import type { Database } from '../schema.js';
 import { enqueue } from './outbox.js';
 import type { Db } from './subscriptions.js';
@@ -22,6 +22,7 @@ export interface StoredInvoiceLine {
   kind: string;
   description: string;
   amountMinor: number;
+  vatRateBps: number;
   derivation: Derivation;
 }
 
@@ -242,7 +243,7 @@ function format(prefix: string, series: DocumentSeries, year: number, value: num
 export async function invoiceLines(db: Db, invoiceId: string): Promise<StoredInvoiceLine[]> {
   const rows = await db
     .selectFrom('invoice_lines')
-    .select(['position', 'kind', 'description', 'amount_minor', 'derivation'])
+    .select(['position', 'kind', 'description', 'amount_minor', 'vat_rate_bps', 'derivation'])
     .where('invoice_id', '=', invoiceId)
     .orderBy('position')
     .execute();
@@ -252,7 +253,60 @@ export async function invoiceLines(db: Db, invoiceId: string): Promise<StoredInv
     kind: row.kind,
     description: row.description,
     amountMinor: row.amount_minor,
+    vatRateBps: row.vat_rate_bps,
     derivation: row.derivation as Derivation,
+  }));
+}
+
+export interface StoredInvoiceSummary {
+  id: string;
+  /** Null only while the invoice is still a draft. */
+  number: string | null;
+  status: string;
+  periodStart: string;
+  periodEnd: string;
+  issuedOn: string | null;
+  dueOn: string | null;
+  total: Money;
+}
+
+/**
+ * Every invoice of a merchant, most recent period first.
+ *
+ * Voided invoices are included rather than filtered out. An invoice that was
+ * issued and then voided is part of what happened to this merchant, and a list
+ * that quietly omits it makes a gap in the numbering look like a bug.
+ */
+export async function invoicesFor(db: Db, merchantId: string): Promise<StoredInvoiceSummary[]> {
+  const rows = await db
+    .selectFrom('invoices')
+    .select([
+      'id',
+      'number',
+      'status',
+      'period_start',
+      'period_end',
+      'issued_on',
+      'due_on',
+      'currency',
+      'total_minor',
+    ])
+    .where('merchant_id', '=', merchantId)
+    .orderBy('period_start', 'desc')
+    // Two invoices can share a period start — a correction, or a void followed
+    // by a reissue — so the order needs a tiebreaker to be reproducible.
+    .orderBy('id')
+    .execute();
+
+  return rows.map((row) => ({
+    id: row.id,
+    number: row.number,
+    status: row.status,
+    periodStart: row.period_start,
+    periodEnd: row.period_end,
+    issuedOn: row.issued_on,
+    dueOn: row.due_on,
+    total: toMoney(row.total_minor, row.currency),
   }));
 }
 

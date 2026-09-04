@@ -70,9 +70,11 @@ export {
   type FinaliseInvoiceInput,
   type PersistInvoiceInput,
   type StoredInvoiceLine,
+  type StoredInvoiceSummary,
   NoSuchInvoiceError,
   finaliseInvoice,
   invoiceLines,
+  invoicesFor,
   periodAlreadyInvoiced,
   persistInvoiceDraft,
 } from './invoices.js';
