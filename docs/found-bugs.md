@@ -6,10 +6,16 @@ then lists the rest, because the pattern across them turned out to be more
 interesting than any one of them.
 
 **The pattern:** four of the six produced *valid, successful output*. Nothing
-threw, no status was 500, no schema was violated. They were found by tests that
-asserted on the content of the answer rather than on its shape — and the two
-that were nearly missed were nearly missed because the first test written for
-them asserted shape.
+threw, no status was 500, no schema was violated. Each was caught by a test that
+asserted on the content of the answer rather than on its shape, and each would
+have survived a test that asserted only shape.
+
+Two of them came close to slipping through anyway, in different ways. The
+OpenAPI document (#3) was passed by three of the four tests written for it,
+including one that was vacuously true against an empty document. The emptied
+derivation (#2) was caught by a test that *passed on its first run* — which
+proves nothing on its own, and was only known to work after being deliberately
+broken.
 
 ---
 
